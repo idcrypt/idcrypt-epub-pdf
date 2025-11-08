@@ -81,51 +81,18 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
-      let cursorY = margin;
+      const canvas = await html2canvas(body, { scale: 2, backgroundColor: "#ffffff" });
+      if (!canvas.width || !canvas.height) continue;
 
-      for (let blk of blocks) {
-        if (!blk.innerText && blk.tagName !== "IMG") continue;
-        if (blk.offsetParent === null) continue;
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const scale = Math.min((pageWidth - 2*margin)/canvas.width, (pageHeight - 2*margin)/canvas.height);
+      const imgW = canvas.width * scale;
+      const imgH = canvas.height * scale;
+      const posX = (pageWidth - imgW)/2;
+      const posY = (pageHeight - imgH)/2;
 
-        if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
-          const columns = blk.tagName === "IMG" ? [blk] : Array.from(blk.children.length ? blk.children : [blk]);
-          for (let col of columns) {
-            if (col.offsetParent === null) continue;
-
-            const canvas = await html2canvas(col, { scale: 2, backgroundColor: "#ffffff" });
-            if (!canvas.width || !canvas.height) continue;
-
-            const imgData = canvas.toDataURL("image/jpeg", 0.95);
-            const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-            const imgW = Math.max(canvas.width * scale, 1);
-            const imgH = Math.max(canvas.height * scale, 1);
-            const posX = Math.max((pageWidth - imgW)/2, 0);
-            const posY = margin;
-
-            pdf.addPage();
-            pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
-          }
-
-        } else {
-          const text = blk.innerText.trim();
-          if (!text) continue;
-
-          const fontSize = 14;
-          pdf.setFontSize(fontSize);
-          const lineHeight = fontSize*1.3;
-          const lines = pdf.splitTextToSize(text, pageWidth - 2*margin);
-          const blockHeight = lines.length*lineHeight + 8;
-
-          if (cursorY + blockHeight > pageHeight - margin) {
-            pdf.addPage();
-            cursorY = margin;
-          }
-
-          pdf.text(lines, margin, cursorY);
-          cursorY += blockHeight;
-        }
-      }
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
       pageCount++;
       const percent = Math.round((pageCount / spineItems.length)*100);
