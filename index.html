@@ -1,28 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IDCRYPT EPUB → PDF Converter</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 
-  <!-- Urutan penting! -->
+  <!-- ====== Library order (LOCAL) ====== -->
   <script src="libs/jszip.min.js"></script>
   <script src="libs/epub.min.js"></script>
+  <script src="libs/html2canvas.min.js"></script>
   <script src="libs/jspdf.umd.min.js"></script>
 </head>
 <body>
   <div class="container">
     <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
-    <p>Convert your .epub ebooks into downloadable PDFs — 100% offline in your browser.</p>
+    <p>Convert your EPUB eBooks into A4 portrait PDFs — complete with images and layout.</p>
 
     <div class="upload-box">
       <label for="epubInput" class="upload-label">Select EPUB File</label>
-      <input type="file" id="epubInput" accept=".epub" hidden>
+      <input type="file" id="epubInput" accept=".epub" hidden />
     </div>
 
     <div id="status"></div>
     <button id="convertBtn" disabled>Convert to PDF</button>
+
+    <!-- Progress bar + text -->
+    <progress id="progress" value="0" max="100" style="width:100%;margin-top:10px;"></progress>
+    <p id="progressText" style="font-size:14px;color:#444;margin:8px 0 0 0;">Waiting...</p>
+
+    <!-- Hidden EPUB render viewer -->
+    <div id="viewer" style="position:fixed;left:-9999px;top:0;width:794px;height:1123px;background:#fff;overflow:auto;"></div>
 
     <div id="preview" class="preview"></div>
   </div>
