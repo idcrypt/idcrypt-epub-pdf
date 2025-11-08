@@ -1,7 +1,3 @@
-// ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Final Super Fix)
-// ============================================================
-
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
 const statusDiv = document.getElementById("status");
@@ -16,26 +12,30 @@ function setStatus(msg, color = "#333") {
   console.log(msg);
 }
 
-// ===== Step 1: EPUB Upload =====
+// ===== Step 1: Load EPUB =====
 epubInput.addEventListener("change", handleEpubSelect);
 function handleEpubSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
+
   setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
+
   reader.onload = function(evt) {
     const data = evt.target.result;
     try {
       if (book) book.destroy();
       book = ePub(data);
+
       rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
-      // override sandbox iframe
+      // override iframe sandbox supaya JS bisa jalan
       setTimeout(() => {
         const iframe = viewer.querySelector("iframe");
         if (iframe) iframe.setAttribute("sandbox","allow-scripts allow-same-origin");
       }, 100);
 
+      // maximize theme
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -50,6 +50,7 @@ function handleEpubSelect(e) {
       setStatus(`Error loading EPUB: ${err.message}`, "red");
     }
   };
+
   reader.readAsArrayBuffer(file);
 }
 
@@ -86,7 +87,7 @@ convertBtn.addEventListener("click", async () => {
 
       for (let blk of blocks) {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
-        if (blk.offsetParent === null) continue; // skip invisible
+        if (blk.offsetParent === null) continue;
 
         if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
           const columns = blk.tagName === "IMG" ? [blk] : Array.from(blk.children.length ? blk.children : [blk]);
