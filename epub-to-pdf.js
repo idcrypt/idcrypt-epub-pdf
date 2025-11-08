@@ -11,16 +11,19 @@ function handleEpubSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
   statusDiv.innerHTML = `<p>Loading <strong>${file.name}</strong>...</p>`;
-  const reader = new FileReader();
 
+  const reader = new FileReader();
   reader.onload = function(evt) {
     const data = evt.target.result;
-    book = ePub(data);
-    convertBtn.disabled = false;
-    statusDiv.innerHTML = "<p>EPUB loaded successfully!</p>";
-    previewDiv.innerHTML = "<p>Ready to convert.</p>";
+    try {
+      book = ePub(data);
+      convertBtn.disabled = false;
+      statusDiv.innerHTML = "<p>✅ EPUB loaded successfully!</p>";
+      previewDiv.innerHTML = "<p>Ready to convert.</p>";
+    } catch (err) {
+      statusDiv.innerHTML = `<p style="color:red;">Error loading EPUB: ${err.message}</p>`;
+    }
   };
-
   reader.readAsArrayBuffer(file);
 }
 
@@ -30,17 +33,29 @@ convertBtn.addEventListener("click", async () => {
   statusDiv.innerHTML = "<p>Converting to PDF...</p>";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
 
-  const spineItems = book.spine.spineItems;
-  for (let i = 0; i < spineItems.length; i++) {
-    const section = await spineItems[i].load(book.load.bind(book));
-    const text = section.contents.innerText;
-    pdf.text(text, 10, 10 + (i * 10) % 280);
-    pdf.addPage();
+  try {
+    const spineItems = book.spine.spineItems;
+    let y = 40;
+    for (let i = 0; i < spineItems.length; i++) {
+      const section = await spineItems[i].load(book.load.bind(book));
+      const doc = new DOMParser().parseFromString(section.contents, "text/html");
+      const text = doc.body.innerText.trim();
+
+      if (text.length > 0) {
+        const lines = pdf.splitTextToSize(text, 500);
+        pdf.text(lines, 50, y);
+        pdf.addPage();
+      }
+    }
+
+    pdf.save("converted.pdf");
+    statusDiv.innerHTML = "<p>✅ Conversion complete! Your PDF is ready.</p>";
+    previewDiv.innerHTML = "<p>Done — check your download folder.</p>";
+  } catch (err) {
+    statusDiv.innerHTML = `<p style='color:red;'>Conversion failed: ${err.message}</p>`;
   }
 
-  pdf.save("converted.pdf");
-  statusDiv.innerHTML = "<p>✅ Conversion complete!</p>";
   convertBtn.disabled = false;
 });
