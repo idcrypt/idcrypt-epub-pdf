@@ -103,18 +103,29 @@ convertBtn.addEventListener("click", async () => {
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const pdfWidth = imgWidth * 0.75; // px → pt
-      const pdfHeight = imgHeight * 0.75;
+      c// ==== uniform page size with proportional fit ====
+const pageWidth = 800;   // fixed page width (pt)
+const pageHeight = 1000; // fixed page height (pt)
 
-      if (pageCount === 0) {
-        // replace initial page with correct size
-        pdf.deletePage(1);
-        pdf.addPage([pdfWidth, pdfHeight]);
-      } else {
-        pdf.addPage([pdfWidth, pdfHeight]);
-      }
+// hitung rasio agar gambar muat proporsional
+const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+const imgW = canvas.width * ratio;
+const imgH = canvas.height * ratio;
+
+// pusatkan di tengah
+const posX = (pageWidth - imgW) / 2;
+const posY = (pageHeight - imgH) / 2;
+
+// tambahkan halaman baru seragam
+if (pageCount === 0) {
+  pdf.deletePage(1);
+  pdf.addPage([pageWidth, pageHeight]);
+} else {
+  pdf.addPage([pageWidth, pageHeight]);
+}
+
+pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+
 
       pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       pageCount++;
