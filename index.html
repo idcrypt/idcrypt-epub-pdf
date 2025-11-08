@@ -30,7 +30,19 @@
     <p id="progressText" style="font-size:14px;color:#444;margin:8px 0 0 0;">Waiting...</p>
 
     <!-- Hidden EPUB render viewer -->
-    <div id="viewer" style="position:fixed;left:-9999px;top:0;width:794px;height:1123px;background:#fff;overflow:auto;"></div>
+    <div id="viewer"
+     style="position:fixed;
+            left:50%;
+            top:50%;
+            transform:translate(-50%,-50%);
+            width:794px;
+            height:1123px;
+            background:#fff;
+            overflow:auto;
+            opacity:0.01;
+            z-index:9999;">
+</div>
+
 
     <div id="preview" class="preview"></div>
   </div>
