@@ -1,7 +1,7 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
 // Render EPUB pages visually using epub.js + html2canvas + jsPDF
-// Uniform page size, images, CSS, and live progress
+// Lebar konten maksimal A4, tinggi otomatis split, live progress
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -13,7 +13,6 @@ const viewer = document.getElementById("viewer");
 
 let book, rendition;
 
-// ===== Helper: show messages =====
 function setStatus(msg, color = "#333") {
   statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
   console.log(msg);
@@ -32,7 +31,7 @@ function handleEpubSelect(e) {
   reader.onload = function (evt) {
     const data = evt.target.result;
     try {
-      if (book) book.destroy(); // clear previous book
+      if (book) book.destroy();
       book = ePub(data);
       rendition = book.renderTo("viewer", {
         width: 800,
@@ -59,7 +58,7 @@ convertBtn.addEventListener("click", async () => {
   progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // A4
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = 595;  // A4 width in pt
   const pageHeight = 842; // A4 height in pt
 
@@ -81,9 +80,8 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // Tangkap halaman asli tanpa clone/wrapper
       const canvas = await html2canvas(pageBody, {
-        scale: 3,               // tinggi supaya tajam
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -91,16 +89,18 @@ convertBtn.addEventListener("click", async () => {
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // Maksimalkan hasil PDF: proporsional dan center
-      const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+      // ===== Maksimalkan lebar konten A4 =====
+      const scale = pageWidth / canvas.width;
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
-      const posX = (pageWidth - imgW) / 2;
-      const posY = (pageHeight - imgH) / 2;
 
-      if (pageCount === 0) pdf.deletePage(1);
-      pdf.addPage([pageWidth, pageHeight]);
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+      // ===== Split halaman tinggi jika perlu =====
+      let yOffset = 0;
+      while (yOffset < imgH) {
+        pdf.addPage([pageWidth, pageHeight]);
+        pdf.addImage(imgData, "JPEG", 0, -yOffset, imgW, imgH);
+        yOffset += pageHeight;
+      }
 
       pageCount++;
       const percent = Math.round((pageCount / total) * 100);
