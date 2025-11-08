@@ -1,6 +1,6 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// Snapshot per kolom, skip kosong, enlarge text, one A4 per column
+// One horizontal item per A4, scale text, skip empty elements
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -39,12 +39,12 @@ function handleEpubSelect(e) {
         spread: "none"
       });
 
-      // Override layout CSS untuk font terbaca dan lebar penuh
+      // Override CSS: full width, readable font
       rendition.themes.register("maximize", {
         "body": {
           width: "100% !important",
           minWidth: "595px !important",
-          fontSize: "14pt !important",
+          fontSize: "14pt !important"
         },
         "img": {
           maxWidth: "100% !important",
@@ -67,7 +67,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per column =====
+// ===== Step 2: Convert EPUB → PDF per horizontal item =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -96,12 +96,12 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // Ambil semua kolom (sesuaikan selector EPUB)
-      const columns = pageBody.querySelectorAll("div, section, p"); // coba pilih container utama
-      for (let col of columns) {
-        if (!col.innerText.trim()) continue; // skip kosong
+      // Ambil setiap "I" horizontal → setiap anak langsung satu A4
+      const horizontalItems = pageBody.querySelectorAll("div, span, p"); // sesuaikan selector EPUB
+      for (let hItem of horizontalItems) {
+        if (!hItem.innerText.trim()) continue; // skip kosong
 
-        const canvas = await html2canvas(col, {
+        const canvas = await html2canvas(hItem, {
           scale: 2,
           useCORS: true,
           allowTaint: true,
@@ -109,7 +109,7 @@ convertBtn.addEventListener("click", async () => {
         });
 
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const scale = Math.min(pageWidth / canvas.width, 1.5); // scale font
+        const scale = Math.min(pageWidth / canvas.width, 1.5);
         const imgW = canvas.width * scale;
         const imgH = canvas.height * scale;
         const posX = (pageWidth - imgW) / 2;
