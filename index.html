@@ -1,58 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>IDCRYPT EPUB → PDF Converter</title>
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- ====== Library order (LOCAL) ====== -->
-  <script src="libs/jszip.min.js"></script>
-  <script src="libs/epub.min.js"></script>
-  <script src="libs/html2canvas.min.js"></script>
-  <script src="libs/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <!-- Library JS -->
+  <script src="js/epub.min.js"></script>
+  <script src="js/html2canvas.min.js"></script>
+  <script src="js/jspdf.umd.min.js"></script> <!-- UMD build -->
+  <script src="js/converter.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
-    <p>Convert your EPUB eBooks into A4 portrait PDFs — complete with images and layout.</p>
+    <h1>IDCRYPT EPUB → PDF Converter</h1>
 
-    <div class="upload-box">
-      <label for="epubInput" class="upload-label">Select EPUB File</label>
-      <input type="file" id="epubInput" accept=".epub" hidden />
+    <div class="controls">
+      <input type="file" id="epubInput" accept=".epub">
+      <button id="convertBtn" disabled>Convert to PDF</button>
+    </div>
+
+    <div class="progress-container">
+      <progress id="progress" value="0" max="100"></progress>
+      <span id="progressText">Waiting...</span>
     </div>
 
     <div id="status"></div>
-    <button id="convertBtn" disabled>Convert to PDF</button>
 
-    <!-- Progress bar + text -->
-    <progress id="progress" value="0" max="100" style="width:100%;margin-top:10px;"></progress>
-    <p id="progressText" style="font-size:14px;color:#444;margin:8px 0 0 0;">Waiting...</p>
-
-    <!-- Hidden EPUB render viewer -->
-<div id="viewer"
-     style="position:fixed;
-            left:50%;
-            top:50%;
-            transform:translate(-50%,-50%);
-            width:794px;
-            height:1123px;
-            background:#fff;
-            overflow:auto;
-            opacity:0.01;
-            pointer-events:none;
-            z-index:9999;">
-</div>
-
-
-
-    <div id="preview" class="preview"></div>
+    <div id="viewer" class="viewer"></div>
   </div>
-
-  <footer>
-    <p>Built by <strong>IDCRYPT</strong> • Open-source on GitHub</p>
-  </footer>
-
-  <script src="epub-to-pdf.js"></script>
 </body>
 </html>
