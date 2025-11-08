@@ -75,17 +75,20 @@ convertBtn.addEventListener("click", async () => {
       }
 
       await rendition.display(item.href);
-      await waitForRender(rendition);
 
-      // Wait a bit for images/CSS
-      await sleep(500);
+    // Pastikan halaman benar-benar dirender dulu
+    await waitForRender(rendition);
 
-      // Capture viewer
-      const canvas = await html2canvas(viewer, {
+    // Tambahkan jeda ekstra supaya gambar & CSS betul-betul tampil
+    await sleep(1000); // ← ini baris tambahan
+
+    // Sekarang baru tangkap tampilan
+    const canvas = await html2canvas(viewer, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-      });
+    });
+
 
       const imgData = canvas.toDataURL("image/jpeg", 0.9);
       const pageWidth = pdf.internal.pageSize.getWidth();
