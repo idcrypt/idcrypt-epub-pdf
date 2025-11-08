@@ -1,7 +1,6 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// Render EPUB pages visually using epub.js + html2canvas + jsPDF
-// Lebar konten menyesuaikan A4, tulisan tetap proporsional
+// Maximize EPUB layout for A4 PDF, force content width & font
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -34,12 +33,29 @@ function handleEpubSelect(e) {
       if (book) book.destroy();
       book = ePub(data);
 
-      // Render EPUB dengan width A4 supaya font & layout menyesuaikan
+      // Render EPUB dengan A4 width supaya font & layout menyesuaikan
       rendition = book.renderTo("viewer", {
-        width: 595,    // A4 width pt
-        height: 1200,  // tinggi fleksibel
+        width: 595,    // A4 width in pt
+        height: 1200,
         spread: "none"
       });
+
+      // ===== Override layout CSS untuk memperbesar halaman =====
+      rendition.themes.register("maximize", {
+        "body": {
+          width: "100% !important",
+          minWidth: "595px !important",
+          fontSize: "14pt !important",
+        },
+        "img": {
+          maxWidth: "100% !important",
+          height: "auto !important"
+        },
+        "*": {
+          boxSizing: "border-box !important"
+        }
+      });
+      rendition.themes.select("maximize");
 
       convertBtn.disabled = false;
       setStatus("✅ EPUB loaded successfully! Ready to convert.");
@@ -83,9 +99,9 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // Capture halaman dengan html2canvas
+      // Tangkap halaman
       const canvas = await html2canvas(pageBody, {
-        scale: 2, // cukup untuk tajam tapi font tetap proporsional
+        scale: 2, // tajam, tapi proporsional
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff"
@@ -93,12 +109,12 @@ convertBtn.addEventListener("click", async () => {
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // Lebar konten menyesuaikan A4
+      // Lebar konten maksimal A4
       const scale = pageWidth / canvas.width;
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
 
-      // Split halaman tinggi jika lebih dari A4
+      // Split halaman tinggi jika > A4
       let yOffset = 0;
       while (yOffset < imgH) {
         pdf.addPage([pageWidth, pageHeight]);
