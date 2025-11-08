@@ -29,13 +29,12 @@ function handleEpubSelect(e) {
 
       rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
-      // override iframe sandbox supaya JS bisa jalan
+      // override iframe sandbox supaya JS bisa jalan di GitHub Pages
       setTimeout(() => {
         const iframe = viewer.querySelector("iframe");
         if (iframe) iframe.setAttribute("sandbox","allow-scripts allow-same-origin");
       }, 100);
 
-      // maximize theme
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
