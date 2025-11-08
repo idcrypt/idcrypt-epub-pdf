@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Final Maximal)
-// One column/block → one A4 page, images included
+// 📘 IDCRYPT EPUB → PDF Converter (Super Optimal)
+// Auto detect columns/blocks, images included, scale A4
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -39,7 +39,6 @@ function handleEpubSelect(e) {
         spread: "none"
       });
 
-      // Theme to maximize text size and images
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -58,7 +57,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per block/column =====
+// ===== Step 2: Convert EPUB → PDF per column/block =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -78,7 +77,6 @@ convertBtn.addEventListener("click", async () => {
     for (let i = 0; i < spineItems.length; i++) {
       const item = spineItems[i];
 
-      // Skip cover/toc/titlepage if you want, or include cover image
       await rendition.display(item.href);
       await waitForRender(rendition);
       await sleep(800);
@@ -88,16 +86,15 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue; // skip empty
 
-      // Auto detect blocks/columns
-      const blocks = Array.from(body.querySelectorAll("div, section, p, img"));
-      if (blocks.length === 0) {
-        // fallback: entire page as one block
-        blocks.push(body);
-      }
+      // Detect top-level blocks (columns)
+      const blocks = Array.from(body.children).filter(
+        el => el.offsetHeight > 20 && el.offsetWidth > 20 // ignore tiny elements
+      );
+
+      // fallback: entire page if no blocks
+      if (blocks.length === 0) blocks.push(body);
 
       for (let blk of blocks) {
-        if (!blk.innerText && blk.tagName !== "IMG") continue;
-
         const canvas = await html2canvas(blk, {
           scale: 2,
           useCORS: true,
@@ -106,9 +103,11 @@ convertBtn.addEventListener("click", async () => {
         });
 
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
-        const imgW = canvas.width * ratio;
-        const imgH = canvas.height * ratio;
+
+        // Scale proportionally for A4
+        const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
+        const imgW = canvas.width * scale;
+        const imgH = canvas.height * scale;
         const posX = (pageWidth - imgW) / 2;
         const posY = (pageHeight - imgH) / 2;
 
@@ -122,7 +121,7 @@ convertBtn.addEventListener("click", async () => {
       }
     }
 
-    pdf.save("idcrypt-epub-final.pdf");
+    pdf.save("idcrypt-epub-super.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
