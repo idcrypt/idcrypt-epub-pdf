@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (GitHub-ready, UMD jsPDF)
-// One horizontal element per A4, skip empty, scale text
+// 📘 IDCRYPT EPUB → PDF Converter (GitHub-ready, offline)
+// Satu horizontal element → satu A4, skip halaman kosong
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -39,7 +39,6 @@ function handleEpubSelect(e) {
         spread: "none"
       });
 
-      // Maksimalkan font & gambar agar readable di A4
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -66,7 +65,7 @@ convertBtn.addEventListener("click", async () => {
   setStatus("Starting conversion...");
   progressText.textContent = "Rendering pages...";
 
-  const { jsPDF } = window.jspdf; // UMD build
+  const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = 595;
   const pageHeight = 842;
@@ -86,10 +85,9 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // Ambil semua elemen horizontal utama
       const horizontalItems = pageBody.querySelectorAll("div, span, p");
       for (let hItem of horizontalItems) {
-        if (!hItem.innerText.trim()) continue; // skip kosong
+        if (!hItem.innerText.trim()) continue;
 
         const canvas = await html2canvas(hItem, {
           scale: 2,
