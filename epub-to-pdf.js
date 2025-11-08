@@ -1,6 +1,8 @@
-// IDCRYPT EPUB → PDF (Visual Capture Version)
-// Uses epub.js + html2canvas + jsPDF
-// Full A4 portrait with progress percentage
+// ============================================================
+// 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
+// Render EPUB pages visually using epub.js + html2canvas + jsPDF
+// Supports dynamic EPUB size, images, CSS, and live progress
+// ============================================================
 
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
@@ -11,12 +13,13 @@ const viewer = document.getElementById("viewer");
 
 let book, rendition;
 
+// ===== Helper: show messages =====
 function setStatus(msg, color = "#333") {
   statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
   console.log(msg);
 }
 
-// ===== Step 1. Handle EPUB upload =====
+// ===== Step 1: handle EPUB upload =====
 epubInput.addEventListener("change", handleEpubSelect);
 
 function handleEpubSelect(e) {
@@ -29,12 +32,11 @@ function handleEpubSelect(e) {
   reader.onload = function (evt) {
     const data = evt.target.result;
     try {
-      // Destroy previous book if exists
-      if (book) book.destroy();
+      if (book) book.destroy(); // clear previous book
       book = ePub(data);
       rendition = book.renderTo("viewer", {
-        width: 794,
-        height: 1123,
+        width: 800,
+        height: 1200,
         spread: "none",
       });
       convertBtn.disabled = false;
@@ -48,7 +50,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2. Convert EPUB to PDF (visual capture) =====
+// ===== Step 2: Convert EPUB → PDF visually =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -57,7 +59,7 @@ convertBtn.addEventListener("click", async () => {
   progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // initial; later replaced by dynamic size
 
   try {
     const spineItems = book.spine.spineItems;
@@ -68,56 +70,56 @@ convertBtn.addEventListener("click", async () => {
       const item = spineItems[i];
       const href = item.href.toLowerCase();
 
-      // Skip cover/toc automatically
+      // skip useless sections
       if (/cover|titlepage|toc|nav/i.test(href)) {
-        console.log(`Skipping non-content: ${href}`);
+        console.log(`Skipping non-content section: ${href}`);
         continue;
       }
 
       await rendition.display(item.href);
+      await waitForRender(rendition);
+      await sleep(1200); // give time for images/CSS to finish
 
-    // Pastikan halaman benar-benar dirender dulu
-    await waitForRender(rendition);
+      // get current iframe
+      const iframe = viewer.querySelector("iframe");
+      if (!iframe) {
+        console.warn("No iframe found for this section, skipping...");
+        continue;
+      }
 
-    // Tambahkan jeda ekstra supaya gambar & CSS betul-betul tampil
-    await sleep(1000); // ← ini baris tambahan
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      const pageBody = iframeDoc?.body;
+      if (!pageBody || !pageBody.innerText.trim()) {
+        console.warn("Empty or invalid page, skipping...");
+        continue;
+      }
 
-    // Sekarang baru tangkap tampilan
-    // Ambil iframe dari epub.js (biasanya 1 aktif)
-const iframe = viewer.querySelector("iframe");
-const iframeDoc = iframe?.contentDocument || iframe?.contentWindow?.document;
-const pageBody = iframeDoc?.body;
+      // capture the page
+      const canvas = await html2canvas(pageBody, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+      });
 
-if (!pageBody) {
-  console.warn("Page body not found, skipping...");
-  continue;
-}
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdfWidth = imgWidth * 0.75; // px → pt
+      const pdfHeight = imgHeight * 0.75;
 
-// Capture isi halaman dari dalam iframe
-const canvas = await html2canvas(pageBody, {
-  scale: 2,
-  useCORS: true,
-  backgroundColor: "#ffffff",
-});
+      if (pageCount === 0) {
+        // replace initial page with correct size
+        pdf.deletePage(1);
+        pdf.addPage([pdfWidth, pdfHeight]);
+      } else {
+        pdf.addPage([pdfWidth, pdfHeight]);
+      }
 
-
-
-      const imgData = canvas.toDataURL("image/jpeg", 0.9);
-const imgWidth = canvas.width;
-const imgHeight = canvas.height;
-const pdfWidth = imgWidth * 0.75; // konversi px ke pt (1px ≈ 0.75pt)
-const pdfHeight = imgHeight * 0.75;
-
-// buat halaman baru sesuai ukuran gambar
-if (pageCount > 0) pdf.addPage([pdfWidth, pdfHeight]);
-else pdf.setPage(1);
-
-pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-
-
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       pageCount++;
 
-      // Update progress
+      // update progress UI
       const percent = Math.round((pageCount / total) * 100);
       progressBar.value = percent;
       progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
@@ -135,7 +137,7 @@ pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
   convertBtn.disabled = false;
 });
 
-// ===== Utility functions =====
+// ===== Utilities =====
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
