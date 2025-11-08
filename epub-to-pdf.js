@@ -37,17 +37,25 @@ convertBtn.addEventListener("click", async () => {
 
   try {
     const spineItems = book.spine.spineItems;
-    let y = 40;
+    let y = 60;
+
     for (let i = 0; i < spineItems.length; i++) {
       const section = await spineItems[i].load(book.load.bind(book));
-      const doc = new DOMParser().parseFromString(section.contents, "text/html");
-      const text = doc.body.innerText.trim();
+      const htmlContent = section.contents; // ini HTML mentah
 
+      // Parse ke dokumen DOM
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+
+      // Ambil isi teks dari body
+      const text = doc.body ? doc.body.innerText.trim() : "";
       if (text.length > 0) {
         const lines = pdf.splitTextToSize(text, 500);
         pdf.text(lines, 50, y);
         pdf.addPage();
       }
+
+      section.unload(); // bebaskan memory
     }
 
     pdf.save("converted.pdf");
