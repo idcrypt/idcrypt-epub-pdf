@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Clean)
-// Parse text & images → generate PDF per wacana/element
+// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Rapi)
+// One block/column → one A4 page, text & images properly spaced
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -40,7 +40,7 @@ function handleEpubSelect(e) {
       });
 
       rendition.themes.register("maximize", {
-        "body": { width: "100% !important", fontSize: "14pt !important" },
+        "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
         "*": { boxSizing: "border-box !important" }
       });
@@ -86,7 +86,7 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // Ambil blok utama: div/section/p/img
+      // Ambil blok utama: div/section/p/img/h1-h3
       const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
 
       let cursorY = margin;
@@ -95,15 +95,12 @@ convertBtn.addEventListener("click", async () => {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
 
         if (blk.tagName === "IMG") {
-          const img = blk;
-          const tempCanvas = document.createElement("canvas");
-          const ctx = tempCanvas.getContext("2d");
           const image = new Image();
-          image.src = img.src;
+          image.src = blk.src;
 
           await new Promise((res, rej) => {
             image.onload = () => {
-              const scale = Math.min((pageWidth - 2*margin) / image.width, (pageHeight - 2*margin) / image.height);
+              const scale = Math.min((pageWidth - 2*margin)/image.width, (pageHeight - 2*margin)/image.height);
               const imgW = image.width * scale;
               const imgH = image.height * scale;
 
@@ -118,14 +115,16 @@ convertBtn.addEventListener("click", async () => {
             };
             image.onerror = rej;
           });
+
         } else {
           const text = blk.innerText.trim();
           if (!text) continue;
-          const fontSize = 14;
+
+          let fontSize = 14;
           pdf.setFontSize(fontSize);
 
+          const lineHeight = fontSize * 1.3;
           const lines = pdf.splitTextToSize(text, pageWidth - 2*margin);
-          const lineHeight = fontSize * 1.2;
 
           if (cursorY + lines.length*lineHeight > pageHeight - margin) {
             pdf.addPage();
@@ -133,7 +132,7 @@ convertBtn.addEventListener("click", async () => {
           }
 
           pdf.text(lines, margin, cursorY);
-          cursorY += lines.length*lineHeight + 5;
+          cursorY += lines.length*lineHeight + 8; // spacing antar blok
         }
       }
 
@@ -143,7 +142,7 @@ convertBtn.addEventListener("click", async () => {
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-dom.pdf");
+    pdf.save("idcrypt-epub-final.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
