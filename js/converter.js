@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Stable & Optimal)
-// One EPUB page → one A4 page, skip empty pages
+// 📘 IDCRYPT EPUB → PDF Converter (Final Maximal)
+// One column/block → one A4 page, images included
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -34,11 +34,12 @@ function handleEpubSelect(e) {
       book = ePub(data);
 
       rendition = book.renderTo("viewer", {
-        width: 595, // A4 width in pt
-        height: 842 * 1.5, // temporary tall height for scrolling
+        width: 595,
+        height: 1200,
         spread: "none"
       });
 
+      // Theme to maximize text size and images
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -57,7 +58,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per page =====
+// ===== Step 2: Convert EPUB → PDF per block/column =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -77,44 +78,51 @@ convertBtn.addEventListener("click", async () => {
     for (let i = 0; i < spineItems.length; i++) {
       const item = spineItems[i];
 
-      // skip cover, TOC, titlepage
-      if (/cover|titlepage|toc|nav/i.test(item.href)) continue;
-
+      // Skip cover/toc/titlepage if you want, or include cover image
       await rendition.display(item.href);
       await waitForRender(rendition);
-      await sleep(1000);
+      await sleep(800);
 
       const iframe = viewer.querySelector("iframe");
       if (!iframe) continue;
-      const pageBody = iframe.contentDocument?.body;
-      if (!pageBody || !pageBody.innerText.trim()) continue; // skip empty
+      const body = iframe.contentDocument?.body;
+      if (!body || !body.innerText.trim()) continue; // skip empty
 
-      const canvas = await html2canvas(pageBody, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff"
-      });
+      // Auto detect blocks/columns
+      const blocks = Array.from(body.querySelectorAll("div, section, p, img"));
+      if (blocks.length === 0) {
+        // fallback: entire page as one block
+        blocks.push(body);
+      }
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      for (let blk of blocks) {
+        if (!blk.innerText && blk.tagName !== "IMG") continue;
 
-      // Scale proportionally to fit A4 width
-      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
-      const imgW = canvas.width * ratio;
-      const imgH = canvas.height * ratio;
-      const posX = (pageWidth - imgW) / 2;
-      const posY = (pageHeight - imgH) / 2;
+        const canvas = await html2canvas(blk, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff"
+        });
 
-      pdf.addPage([pageWidth, pageHeight]);
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
+        const imgW = canvas.width * ratio;
+        const imgH = canvas.height * ratio;
+        const posX = (pageWidth - imgW) / 2;
+        const posY = (pageHeight - imgH) / 2;
 
-      pageCount++;
-      const percent = Math.round((pageCount / spineItems.length) * 100);
-      progressBar.value = percent;
-      progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} pages (${percent}%)...`;
+        pdf.addPage([pageWidth, pageHeight]);
+        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+
+        pageCount++;
+        const percent = Math.round((pageCount / spineItems.length) * 100);
+        progressBar.value = percent;
+        progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} pages (${percent}%)...`;
+      }
     }
 
-    pdf.save("idcrypt-epub.pdf");
+    pdf.save("idcrypt-epub-final.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
