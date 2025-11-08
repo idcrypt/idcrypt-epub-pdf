@@ -1,6 +1,5 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter Hybrid
-// Block-aware + Snapshot per column/image
+// 📘 IDCRYPT EPUB → PDF Converter (Super Canggih Hybrid + Column-Aware)
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -19,11 +18,9 @@ function setStatus(msg, color = "#333") {
 
 // ===== Step 1: EPUB Upload =====
 epubInput.addEventListener("change", handleEpubSelect);
-
 function handleEpubSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
   reader.onload = function(evt) {
@@ -31,7 +28,6 @@ function handleEpubSelect(e) {
     try {
       if (book) book.destroy();
       book = ePub(data);
-
       rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
       rendition.themes.register("maximize", {
@@ -51,11 +47,10 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF Hybrid =====
+// ===== Step 2: Convert EPUB → PDF (Super Hybrid + Column-Aware) =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
-
   setStatus("Starting conversion...");
   progressText.textContent = "Rendering pages...";
 
@@ -80,27 +75,27 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // Ambil blok teks & gambar
+      // ===== Ambil blok teks/gambar =====
       const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
       let cursorY = margin;
 
       for (let blk of blocks) {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
 
-        // ===== Jika gambar atau multi-kolom: snapshot per element =====
+        // ===== Jika gambar atau kolom multi: snapshot =====
         if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
-          const canvas = await html2canvas(blk, { scale: 2, backgroundColor: "#ffffff" });
-          const imgData = canvas.toDataURL("image/jpeg", 0.95);
-          const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-          const imgW = canvas.width * scale;
-          const imgH = canvas.height * scale;
+          // Split multi-column: coba setiap direct child div
+          const columns = blk.tagName === "IMG" ? [blk] : Array.from(blk.children.length ? blk.children : [blk]);
+          for (let col of columns) {
+            const canvas = await html2canvas(col, { scale: 2, backgroundColor: "#ffffff" });
+            const imgData = canvas.toDataURL("image/jpeg", 0.95);
+            const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+            const imgW = canvas.width * scale;
+            const imgH = canvas.height * scale;
 
-          if (cursorY + imgH > pageHeight - margin) {
             pdf.addPage();
-            cursorY = margin;
+            pdf.addImage(imgData, "JPEG", (pageWidth - imgW)/2, margin, imgW, imgH);
           }
-          pdf.addImage(imgData, "JPEG", (pageWidth-imgW)/2, cursorY, imgW, imgH);
-          cursorY += imgH + 10;
 
         } else {
           // ===== Teks biasa: block-aware =====
@@ -129,7 +124,7 @@ convertBtn.addEventListener("click", async () => {
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-hybrid.pdf");
+    pdf.save("idcrypt-epub-super.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
