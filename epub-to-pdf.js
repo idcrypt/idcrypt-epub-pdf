@@ -1,9 +1,3 @@
-// ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// Render EPUB pages visually using epub.js + html2canvas + jsPDF
-// Uniform page size, images, CSS, and live progress
-// ============================================================
-
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
 const statusDiv = document.getElementById("status");
@@ -15,7 +9,7 @@ let book, rendition;
 
 // ===== Helper: show messages =====
 function setStatus(msg, color = "#333") {
-  statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
+  statusDiv.innerHTML = `<p style="color:${color}">${msg}</p>`;
   console.log(msg);
 }
 
@@ -29,20 +23,20 @@ function handleEpubSelect(e) {
   setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
 
-  reader.onload = function (evt) {
+  reader.onload = function(evt) {
     const data = evt.target.result;
     try {
-      if (book) book.destroy(); // clear previous book
+      if (book) book.destroy();
       book = ePub(data);
       rendition = book.renderTo("viewer", {
         width: 800,
         height: 1200,
-        spread: "none",
+        spread: "none"
       });
       convertBtn.disabled = false;
       setStatus("✅ EPUB loaded successfully! Ready to convert.");
       progressText.textContent = "Ready to start conversion.";
-    } catch (err) {
+    } catch(err) {
       setStatus(`Error loading EPUB: ${err.message}`, "red");
     }
   };
@@ -59,7 +53,9 @@ convertBtn.addEventListener("click", async () => {
   progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // placeholder; will use uniform size
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = 595;  // A4 pt
+  const pageHeight = 842; // A4 pt
 
   try {
     const spineItems = book.spine.spineItems;
@@ -68,11 +64,6 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < total; i++) {
       const item = spineItems[i];
-      const href = item.href.toLowerCase();
-
-      // skip cover/toc/titlepage
-      if (/cover|titlepage|toc|nav/i.test(href)) continue;
-
       await rendition.display(item.href);
       await waitForRender(rendition);
       await sleep(1200);
@@ -82,49 +73,51 @@ convertBtn.addEventListener("click", async () => {
 
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
       const pageBody = iframeDoc?.body;
-      if (!pageBody || !pageBody.innerText.trim()) continue;
+      if (!pageBody) continue;
 
-      const canvas = await html2canvas(pageBody, {
-        scale: 2,
+      // wrap page content untuk uniform size
+      const wrapper = document.createElement("div");
+      wrapper.style.width = "800px";
+      wrapper.style.height = "1000px";
+      wrapper.style.display = "flex";
+      wrapper.style.justifyContent = "center";
+      wrapper.style.alignItems = "center";
+      wrapper.style.background = "#ffffff";
+      wrapper.appendChild(pageBody.cloneNode(true));
+
+      const canvas = await html2canvas(wrapper, {
+        scale: 3,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#ffffff"
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // ==== uniform page size ====
-      const pageWidth = 800;
-      const pageHeight = 1000;
+      // hitung scale supaya proporsional dan center
+      const scaleX = pageWidth / canvas.width;
+      const scaleY = pageHeight / canvas.height;
+      const scale = Math.min(scaleX, scaleY);
 
-      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-      const imgW = canvas.width * ratio;
-      const imgH = canvas.height * ratio;
-
+      const imgW = canvas.width * scale;
+      const imgH = canvas.height * scale;
       const posX = (pageWidth - imgW) / 2;
       const posY = (pageHeight - imgH) / 2;
 
-      if (pageCount === 0) {
-        pdf.deletePage(1);
-        pdf.addPage([pageWidth, pageHeight]);
-      } else {
-        pdf.addPage([pageWidth, pageHeight]);
-      }
-
+      if (pageCount === 0) pdf.deletePage(1);
+      pdf.addPage([pageWidth, pageHeight]);
       pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
       pageCount++;
-
-      // update progress
       const percent = Math.round((pageCount / total) * 100);
       progressBar.value = percent;
       progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-converted.pdf");
+    pdf.save("idcrypt-epub.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
-  } catch (err) {
+  } catch(err) {
     console.error(err);
     setStatus(`❌ Conversion failed: ${err.message}`, "red");
     progressText.textContent = "Error during conversion.";
@@ -135,15 +128,12 @@ convertBtn.addEventListener("click", async () => {
 
 // ===== Utilities =====
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function waitForRender(rendition) {
-  return new Promise((resolve) => {
-    const handler = () => {
-      rendition.off("rendered", handler);
-      resolve();
-    };
+  return new Promise(resolve => {
+    const handler = () => { rendition.off("rendered", handler); resolve(); };
     rendition.on("rendered", handler);
   });
 }
