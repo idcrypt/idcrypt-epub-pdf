@@ -1,7 +1,7 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
 // Render EPUB pages visually using epub.js + html2canvas + jsPDF
-// Supports dynamic EPUB size, images, CSS, and live progress
+// Uniform page size, images, CSS, and live progress
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -59,7 +59,7 @@ convertBtn.addEventListener("click", async () => {
   progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // initial; later replaced by dynamic size
+  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // placeholder; will use uniform size
 
   try {
     const spineItems = book.spine.spineItems;
@@ -70,31 +70,20 @@ convertBtn.addEventListener("click", async () => {
       const item = spineItems[i];
       const href = item.href.toLowerCase();
 
-      // skip useless sections
-      if (/cover|titlepage|toc|nav/i.test(href)) {
-        console.log(`Skipping non-content section: ${href}`);
-        continue;
-      }
+      // skip cover/toc/titlepage
+      if (/cover|titlepage|toc|nav/i.test(href)) continue;
 
       await rendition.display(item.href);
       await waitForRender(rendition);
-      await sleep(1200); // give time for images/CSS to finish
+      await sleep(1200);
 
-      // get current iframe
       const iframe = viewer.querySelector("iframe");
-      if (!iframe) {
-        console.warn("No iframe found for this section, skipping...");
-        continue;
-      }
+      if (!iframe) continue;
 
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
       const pageBody = iframeDoc?.body;
-      if (!pageBody || !pageBody.innerText.trim()) {
-        console.warn("Empty or invalid page, skipping...");
-        continue;
-      }
+      if (!pageBody || !pageBody.innerText.trim()) continue;
 
-      // capture the page
       const canvas = await html2canvas(pageBody, {
         scale: 2,
         useCORS: true,
@@ -103,34 +92,30 @@ convertBtn.addEventListener("click", async () => {
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      c// ==== uniform page size with proportional fit ====
-const pageWidth = 800;   // fixed page width (pt)
-const pageHeight = 1000; // fixed page height (pt)
 
-// hitung rasio agar gambar muat proporsional
-const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-const imgW = canvas.width * ratio;
-const imgH = canvas.height * ratio;
+      // ==== uniform page size ====
+      const pageWidth = 800;
+      const pageHeight = 1000;
 
-// pusatkan di tengah
-const posX = (pageWidth - imgW) / 2;
-const posY = (pageHeight - imgH) / 2;
+      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+      const imgW = canvas.width * ratio;
+      const imgH = canvas.height * ratio;
 
-// tambahkan halaman baru seragam
-if (pageCount === 0) {
-  pdf.deletePage(1);
-  pdf.addPage([pageWidth, pageHeight]);
-} else {
-  pdf.addPage([pageWidth, pageHeight]);
-}
+      const posX = (pageWidth - imgW) / 2;
+      const posY = (pageHeight - imgH) / 2;
 
-pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+      if (pageCount === 0) {
+        pdf.deletePage(1);
+        pdf.addPage([pageWidth, pageHeight]);
+      } else {
+        pdf.addPage([pageWidth, pageHeight]);
+      }
 
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       pageCount++;
 
-      // update progress UI
+      // update progress
       const percent = Math.round((pageCount / total) * 100);
       progressBar.value = percent;
       progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
