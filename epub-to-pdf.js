@@ -1,6 +1,6 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// One EPUB page per PDF page, enlarge text for readability, skip empty pages
+// Snapshot per kolom, skip kosong, enlarge text, one A4 per column
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -34,12 +34,12 @@ function handleEpubSelect(e) {
       book = ePub(data);
 
       rendition = book.renderTo("viewer", {
-        width: 595,    // A4 width in pt
+        width: 595,    // A4 width
         height: 1200,
         spread: "none"
       });
 
-      // Override layout untuk maksimal lebar dan font terbaca
+      // Override layout CSS untuk font terbaca dan lebar penuh
       rendition.themes.register("maximize", {
         "body": {
           width: "100% !important",
@@ -67,7 +67,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF visually =====
+// ===== Step 2: Convert EPUB → PDF per column =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -87,41 +87,42 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < total; i++) {
       const item = spineItems[i];
-
       await rendition.display(item.href);
       await waitForRender(rendition);
       await sleep(800);
 
       const iframe = viewer.querySelector("iframe");
       if (!iframe) continue;
-
       const pageBody = iframe.contentDocument?.body;
-      if (!pageBody || !pageBody.innerText.trim()) continue; // skip empty
+      if (!pageBody) continue;
 
-      const canvas = await html2canvas(pageBody, {
-        scale: 2, 
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff"
-      });
+      // Ambil semua kolom (sesuaikan selector EPUB)
+      const columns = pageBody.querySelectorAll("div, section, p"); // coba pilih container utama
+      for (let col of columns) {
+        if (!col.innerText.trim()) continue; // skip kosong
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const canvas = await html2canvas(col, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff"
+        });
 
-      // scale selektif untuk memperbesar tulisan, tapi satu halaman per EPUB
-      const scale = Math.min(pageWidth / canvas.width, 1.5); // jangan over-scale
-      const imgW = canvas.width * scale;
-      const imgH = canvas.height * scale;
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const scale = Math.min(pageWidth / canvas.width, 1.5); // scale font
+        const imgW = canvas.width * scale;
+        const imgH = canvas.height * scale;
+        const posX = (pageWidth - imgW) / 2;
+        const posY = (pageHeight - imgH) / 2;
 
-      const posX = (pageWidth - imgW) / 2;
-      const posY = (pageHeight - imgH) / 2;
+        pdf.addPage([pageWidth, pageHeight]);
+        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
-      pdf.addPage([pageWidth, pageHeight]);
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
-
-      pageCount++;
-      const percent = Math.round((pageCount / total) * 100);
-      progressBar.value = percent;
-      progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
+        pageCount++;
+        const percent = Math.round((pageCount / total) * 100);
+        progressBar.value = percent;
+        progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
+      }
     }
 
     pdf.save("idcrypt-epub.pdf");
