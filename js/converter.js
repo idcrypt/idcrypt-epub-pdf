@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (GitHub-ready, offline)
-// Satu horizontal element → satu A4, skip halaman kosong
+// 📘 IDCRYPT EPUB → PDF Converter (Stable & Optimal)
+// One EPUB page → one A4 page, skip empty pages
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -35,7 +35,7 @@ function handleEpubSelect(e) {
 
       rendition = book.renderTo("viewer", {
         width: 595, // A4 width in pt
-        height: 1200,
+        height: 842 * 1.5, // temporary tall height for scrolling
         spread: "none"
       });
 
@@ -57,7 +57,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per horizontal element =====
+// ===== Step 2: Convert EPUB → PDF per page =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -76,41 +76,42 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < spineItems.length; i++) {
       const item = spineItems[i];
+
+      // skip cover, TOC, titlepage
+      if (/cover|titlepage|toc|nav/i.test(item.href)) continue;
+
       await rendition.display(item.href);
       await waitForRender(rendition);
-      await sleep(800);
+      await sleep(1000);
 
       const iframe = viewer.querySelector("iframe");
       if (!iframe) continue;
       const pageBody = iframe.contentDocument?.body;
-      if (!pageBody) continue;
+      if (!pageBody || !pageBody.innerText.trim()) continue; // skip empty
 
-      const horizontalItems = pageBody.querySelectorAll("div, span, p");
-      for (let hItem of horizontalItems) {
-        if (!hItem.innerText.trim()) continue;
+      const canvas = await html2canvas(pageBody, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff"
+      });
 
-        const canvas = await html2canvas(hItem, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff"
-        });
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const scale = Math.min(pageWidth / canvas.width, 1.5);
-        const imgW = canvas.width * scale;
-        const imgH = canvas.height * scale;
-        const posX = (pageWidth - imgW) / 2;
-        const posY = (pageHeight - imgH) / 2;
+      // Scale proportionally to fit A4 width
+      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
+      const imgW = canvas.width * ratio;
+      const imgH = canvas.height * ratio;
+      const posX = (pageWidth - imgW) / 2;
+      const posY = (pageHeight - imgH) / 2;
 
-        pdf.addPage([pageWidth, pageHeight]);
-        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+      pdf.addPage([pageWidth, pageHeight]);
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
-        pageCount++;
-        const percent = Math.round((pageCount / spineItems.length) * 100);
-        progressBar.value = percent;
-        progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} pages (${percent}%)...`;
-      }
+      pageCount++;
+      const percent = Math.round((pageCount / spineItems.length) * 100);
+      progressBar.value = percent;
+      progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} pages (${percent}%)...`;
     }
 
     pdf.save("idcrypt-epub.pdf");
