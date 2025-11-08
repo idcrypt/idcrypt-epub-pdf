@@ -35,7 +35,7 @@ function handleEpubSelect(e) {
         if (iframe) iframe.setAttribute("sandbox","allow-scripts allow-same-origin");
       }, 100);
 
-      // Theme maximize supaya teks lebih besar
+      // Theme maximize supaya teks & gambar lebih besar
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -54,7 +54,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Convert EPUB → PDF per blok =====
+// ===== Convert EPUB → PDF per blok wajar =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
@@ -82,12 +82,11 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // ===== Ambil tiap blok div, section, p, h1-h6, img =====
-      const blocks = Array.from(body.querySelectorAll("div, section, p, h1, h2, h3, h4, h5, h6, img"));
-
+      // ===== Ambil tiap blok wajar =====
+      const blocks = Array.from(body.querySelectorAll("div, section, figure, img"));
       for (let blk of blocks) {
         if (!blk.offsetParent) continue; // skip hidden
-        if (!blk.innerText.trim() && blk.tagName !== "IMG") continue; // skip empty text
+        if (!blk.innerText.trim() && blk.tagName !== "IMG") continue; // skip kosong
 
         const canvas = await html2canvas(blk, { scale: 2, backgroundColor: "#ffffff" });
         if (!canvas.width || !canvas.height) continue;
