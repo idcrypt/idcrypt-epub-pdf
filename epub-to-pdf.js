@@ -40,22 +40,17 @@ convertBtn.addEventListener("click", async () => {
     let y = 60;
 
     for (let i = 0; i < spineItems.length; i++) {
-      const section = await spineItems[i].load(book.load.bind(book));
-      const htmlContent = section.contents; // ini HTML mentah
-
-      // Parse ke dokumen DOM
+      const section = spineItems[i];
+      const contents = await section.load(book.load.bind(book)); // ambil isi bab
       const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-
-      // Ambil isi teks dari body
+      const doc = parser.parseFromString(contents, "text/html");
       const text = doc.body ? doc.body.innerText.trim() : "";
+
       if (text.length > 0) {
         const lines = pdf.splitTextToSize(text, 500);
         pdf.text(lines, 50, y);
         pdf.addPage();
       }
-
-      section.unload(); // bebaskan memory
     }
 
     pdf.save("converted.pdf");
@@ -63,6 +58,7 @@ convertBtn.addEventListener("click", async () => {
     previewDiv.innerHTML = "<p>Done — check your download folder.</p>";
   } catch (err) {
     statusDiv.innerHTML = `<p style='color:red;'>Conversion failed: ${err.message}</p>`;
+    console.error(err);
   }
 
   convertBtn.disabled = false;
