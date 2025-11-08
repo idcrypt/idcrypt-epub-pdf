@@ -7,7 +7,6 @@ const viewer = document.getElementById("viewer");
 
 let book, rendition;
 
-// ===== Helper: show messages =====
 function setStatus(msg, color = "#333") {
   statusDiv.innerHTML = `<p style="color:${color}">${msg}</p>`;
   console.log(msg);
@@ -64,29 +63,19 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < total; i++) {
       const item = spineItems[i];
+
       await rendition.display(item.href);
       await waitForRender(rendition);
-      await sleep(1200);
+      await sleep(800);
 
       const iframe = viewer.querySelector("iframe");
       if (!iframe) continue;
 
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      const pageBody = iframeDoc?.body;
+      const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // wrap page content untuk uniform size
-      const wrapper = document.createElement("div");
-      wrapper.style.width = "800px";
-      wrapper.style.height = "1000px";
-      wrapper.style.display = "flex";
-      wrapper.style.justifyContent = "center";
-      wrapper.style.alignItems = "center";
-      wrapper.style.background = "#ffffff";
-      wrapper.appendChild(pageBody.cloneNode(true));
-
-      const canvas = await html2canvas(wrapper, {
-        scale: 3,
+      const canvas = await html2canvas(pageBody, {
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff"
@@ -94,11 +83,7 @@ convertBtn.addEventListener("click", async () => {
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // hitung scale supaya proporsional dan center
-      const scaleX = pageWidth / canvas.width;
-      const scaleY = pageHeight / canvas.height;
-      const scale = Math.min(scaleX, scaleY);
-
+      const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
       const posX = (pageWidth - imgW) / 2;
@@ -109,9 +94,8 @@ convertBtn.addEventListener("click", async () => {
       pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
       pageCount++;
-      const percent = Math.round((pageCount / total) * 100);
-      progressBar.value = percent;
-      progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
+      progressBar.value = Math.round((pageCount / total) * 100);
+      progressText.textContent = `Rendering ${pageCount} of ${total} pages...`;
     }
 
     pdf.save("idcrypt-epub.pdf");
