@@ -83,11 +83,23 @@ convertBtn.addEventListener("click", async () => {
     await sleep(1000); // ← ini baris tambahan
 
     // Sekarang baru tangkap tampilan
-    const canvas = await html2canvas(viewer, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-    });
+    // Ambil iframe dari epub.js (biasanya 1 aktif)
+const iframe = viewer.querySelector("iframe");
+const iframeDoc = iframe?.contentDocument || iframe?.contentWindow?.document;
+const pageBody = iframeDoc?.body;
+
+if (!pageBody) {
+  console.warn("Page body not found, skipping...");
+  continue;
+}
+
+// Capture isi halaman dari dalam iframe
+const canvas = await html2canvas(pageBody, {
+  scale: 2,
+  useCORS: true,
+  backgroundColor: "#ffffff",
+});
+
 
 
       const imgData = canvas.toDataURL("image/jpeg", 0.9);
