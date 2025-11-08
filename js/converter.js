@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Ultra-Optimal)
-// One block/column/wacana → one A4 page, images included
+// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Clean)
+// Parse text & images → generate PDF per wacana/element
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -17,7 +17,7 @@ function setStatus(msg, color = "#333") {
   console.log(msg);
 }
 
-// ===== Step 1: handle EPUB upload =====
+// ===== Step 1: Handle EPUB Upload =====
 epubInput.addEventListener("change", handleEpubSelect);
 
 function handleEpubSelect(e) {
@@ -39,9 +39,8 @@ function handleEpubSelect(e) {
         spread: "none"
       });
 
-      // Maximize text & image readability
       rendition.themes.register("maximize", {
-        "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
+        "body": { width: "100% !important", fontSize: "14pt !important" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
         "*": { boxSizing: "border-box !important" }
       });
@@ -58,7 +57,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per wacana/column/block =====
+// ===== Step 2: Convert EPUB → PDF (per element) =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -70,6 +69,7 @@ convertBtn.addEventListener("click", async () => {
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = 595;
   const pageHeight = 842;
+  const margin = 20;
 
   try {
     const spineItems = book.spine.spineItems;
@@ -77,52 +77,73 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < spineItems.length; i++) {
       const item = spineItems[i];
-
       await rendition.display(item.href);
       await waitForRender(rendition);
-      await sleep(800);
+      await sleep(500);
 
       const iframe = viewer.querySelector("iframe");
       if (!iframe) continue;
       const body = iframe.contentDocument?.body;
-      if (!body || !body.innerText.trim()) continue; // skip empty
+      if (!body || !body.innerText.trim()) continue;
 
-      // Detect top-level blocks (wacana / column)
-      const blocks = Array.from(body.children).filter(el => {
-        const rect = el.getBoundingClientRect();
-        return (rect.width > 30 && rect.height > 30); // ignore tiny elements
-      });
+      // Ambil blok utama: div/section/p/img
+      const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
 
-      if (blocks.length === 0) blocks.push(body); // fallback: entire page
+      let cursorY = margin;
 
       for (let blk of blocks) {
-        if (!blk.innerText && blk.tagName !== "IMG") continue; // skip empty
+        if (!blk.innerText && blk.tagName !== "IMG") continue;
 
-        const canvas = await html2canvas(blk, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff"
-        });
+        if (blk.tagName === "IMG") {
+          const img = blk;
+          const tempCanvas = document.createElement("canvas");
+          const ctx = tempCanvas.getContext("2d");
+          const image = new Image();
+          image.src = img.src;
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height, 1.5);
-        const imgW = canvas.width * scale;
-        const imgH = canvas.height * scale;
-        const posX = (pageWidth - imgW) / 2;
-        const posY = (pageHeight - imgH) / 2;
+          await new Promise((res, rej) => {
+            image.onload = () => {
+              const scale = Math.min((pageWidth - 2*margin) / image.width, (pageHeight - 2*margin) / image.height);
+              const imgW = image.width * scale;
+              const imgH = image.height * scale;
 
-        pdf.addPage([pageWidth, pageHeight]);
-        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+              if (cursorY + imgH > pageHeight - margin) {
+                pdf.addPage();
+                cursorY = margin;
+              }
 
-        pageCount++;
-        const percent = Math.round((pageCount / spineItems.length) * 100);
-        progressBar.value = percent;
-        progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} pages (${percent}%)...`;
+              pdf.addImage(image, "JPEG", (pageWidth - imgW)/2, cursorY, imgW, imgH);
+              cursorY += imgH + 10;
+              res();
+            };
+            image.onerror = rej;
+          });
+        } else {
+          const text = blk.innerText.trim();
+          if (!text) continue;
+          const fontSize = 14;
+          pdf.setFontSize(fontSize);
+
+          const lines = pdf.splitTextToSize(text, pageWidth - 2*margin);
+          const lineHeight = fontSize * 1.2;
+
+          if (cursorY + lines.length*lineHeight > pageHeight - margin) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+
+          pdf.text(lines, margin, cursorY);
+          cursorY += lines.length*lineHeight + 5;
+        }
       }
+
+      pageCount++;
+      const percent = Math.round((pageCount / spineItems.length) * 100);
+      progressBar.value = percent;
+      progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-ultra.pdf");
+    pdf.save("idcrypt-epub-dom.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
