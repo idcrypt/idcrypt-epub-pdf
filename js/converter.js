@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Rapi)
-// One block/column → one A4 page, text & images properly spaced
+// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Rapi, Block-Aware)
+// One block/column → one A4 page, no text overlapping
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -57,7 +57,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF (per element) =====
+// ===== Step 2: Convert EPUB → PDF (per block-aware) =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -104,6 +104,7 @@ convertBtn.addEventListener("click", async () => {
               const imgW = image.width * scale;
               const imgH = image.height * scale;
 
+              // Block-aware page break
               if (cursorY + imgH > pageHeight - margin) {
                 pdf.addPage();
                 cursorY = margin;
@@ -120,19 +121,20 @@ convertBtn.addEventListener("click", async () => {
           const text = blk.innerText.trim();
           if (!text) continue;
 
-          let fontSize = 14;
+          const fontSize = 14;
           pdf.setFontSize(fontSize);
-
           const lineHeight = fontSize * 1.3;
           const lines = pdf.splitTextToSize(text, pageWidth - 2*margin);
+          const blockHeight = lines.length * lineHeight + 8; // spacing antar blok
 
-          if (cursorY + lines.length*lineHeight > pageHeight - margin) {
+          // Block-aware page break
+          if (cursorY + blockHeight > pageHeight - margin) {
             pdf.addPage();
             cursorY = margin;
           }
 
           pdf.text(lines, margin, cursorY);
-          cursorY += lines.length*lineHeight + 8; // spacing antar blok
+          cursorY += blockHeight;
         }
       }
 
@@ -142,7 +144,7 @@ convertBtn.addEventListener("click", async () => {
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-final.pdf");
+    pdf.save("idcrypt-epub-final-block.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
