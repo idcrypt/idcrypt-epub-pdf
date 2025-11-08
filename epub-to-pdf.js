@@ -1,99 +1,135 @@
+// IDCRYPT EPUB → PDF (Visual Capture Version)
+// Uses epub.js + html2canvas + jsPDF
+// Full A4 portrait with progress percentage
+
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
 const statusDiv = document.getElementById("status");
-const previewDiv = document.getElementById("preview");
+const progressBar = document.getElementById("progress");
+const progressText = document.getElementById("progressText");
+const viewer = document.getElementById("viewer");
 
-let book;
+let book, rendition;
 
+function setStatus(msg, color = "#333") {
+  statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
+  console.log(msg);
+}
+
+// ===== Step 1. Handle EPUB upload =====
 epubInput.addEventListener("change", handleEpubSelect);
 
 function handleEpubSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
-  statusDiv.innerHTML = `<p>Loading <strong>${file.name}</strong>...</p>`;
 
+  setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
-  reader.onload = function(evt) {
+
+  reader.onload = function (evt) {
     const data = evt.target.result;
     try {
+      // Destroy previous book if exists
+      if (book) book.destroy();
       book = ePub(data);
+      rendition = book.renderTo("viewer", {
+        width: 794,
+        height: 1123,
+        spread: "none",
+      });
       convertBtn.disabled = false;
-      statusDiv.innerHTML = "<p>✅ EPUB loaded successfully!</p>";
-      previewDiv.innerHTML = "<p>Ready to convert.</p>";
+      setStatus("✅ EPUB loaded successfully! Ready to convert.");
+      progressText.textContent = "Ready to start conversion.";
     } catch (err) {
-      statusDiv.innerHTML = `<p style="color:red;">Error loading EPUB: ${err.message}</p>`;
+      setStatus(`Error loading EPUB: ${err.message}`, "red");
     }
   };
+
   reader.readAsArrayBuffer(file);
 }
 
+// ===== Step 2. Convert EPUB to PDF (visual capture) =====
 convertBtn.addEventListener("click", async () => {
-  if (!book) return;
+  if (!book || !rendition) return;
+
   convertBtn.disabled = true;
-  statusDiv.innerHTML = "<p>Converting to PDF...</p>";
+  setStatus("Starting conversion...");
+  progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
 
   try {
     const spineItems = book.spine.spineItems;
-    let page = 1;
+    const total = spineItems.length;
+    let pageCount = 0;
 
-    for (let i = 0; i < spineItems.length; i++) {
-      const section = spineItems[i];
+    for (let i = 0; i < total; i++) {
+      const item = spineItems[i];
+      const href = item.href.toLowerCase();
 
-      // Lewati halaman "titlepage" atau "cover"
-      if (/titlepage|cover/i.test(section.href)) {
-        console.log(`Skipping ${section.href}`);
+      // Skip cover/toc automatically
+      if (/cover|titlepage|toc|nav/i.test(href)) {
+        console.log(`Skipping non-content: ${href}`);
         continue;
       }
 
-      let htmlContent = "";
-      try {
-        const rendered = await section.render();
-        htmlContent = rendered && rendered.html ? rendered.html : "";
-      } catch {
-        const raw = await section.load(book.load.bind(book));
-        htmlContent = typeof raw === "string" ? raw : raw.outerHTML || "";
-      }
+      await rendition.display(item.href);
+      await waitForRender(rendition);
 
-      if (!htmlContent.trim()) continue;
+      // Wait a bit for images/CSS
+      await sleep(500);
 
-      // Parse HTML ke teks
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-      const cleanText = doc.body ? doc.body.innerText.trim() : "";
+      // Capture viewer
+      const canvas = await html2canvas(viewer, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
 
-      if (!cleanText) continue;
+      const imgData = canvas.toDataURL("image/jpeg", 0.9);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+      const imgW = canvas.width * ratio;
+      const imgH = canvas.height * ratio;
+      const posX = (pageWidth - imgW) / 2;
+      const posY = 0;
 
-      const title = section.idref || `Chapter ${i + 1}`;
-      pdf.setFontSize(14);
-      pdf.text(title, 50, 60);
-      pdf.setFontSize(11);
+      if (pageCount > 0) pdf.addPage();
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
-      const lines = pdf.splitTextToSize(cleanText, 500);
-      let y = 80;
+      pageCount++;
 
-      for (let j = 0; j < lines.length; j++) {
-        if (y > 750) {
-          pdf.addPage();
-          page++;
-          y = 60;
-        }
-        pdf.text(lines[j], 50, y);
-        y += 14;
-      }
-
-      if (i < spineItems.length - 1) pdf.addPage();
+      // Update progress
+      const percent = Math.round((pageCount / total) * 100);
+      progressBar.value = percent;
+      progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
     }
 
-    pdf.save("converted.pdf");
-    statusDiv.innerHTML = "<p>✅ Conversion complete! Your PDF is ready.</p>";
-    previewDiv.innerHTML = "<p>Done — check your download folder.</p>";
+    pdf.save("idcrypt-epub-converted.pdf");
+    setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
+    progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
     console.error(err);
-    statusDiv.innerHTML = `<p style='color:red;'>Conversion failed: ${err.message}</p>`;
+    setStatus(`❌ Conversion failed: ${err.message}`, "red");
+    progressText.textContent = "Error during conversion.";
   }
 
   convertBtn.disabled = false;
 });
+
+// ===== Utility functions =====
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function waitForRender(rendition) {
+  return new Promise((resolve) => {
+    const handler = () => {
+      rendition.off("rendered", handler);
+      resolve();
+    };
+    rendition.on("rendered", handler);
+  });
+}
