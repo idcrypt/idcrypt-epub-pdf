@@ -12,7 +12,7 @@ function setStatus(msg, color = "#333") {
   console.log(msg);
 }
 
-// ===== Step 1: Load EPUB =====
+// ===== Load EPUB =====
 epubInput.addEventListener("change", handleEpubSelect);
 function handleEpubSelect(e) {
   const file = e.target.files[0];
@@ -29,12 +29,13 @@ function handleEpubSelect(e) {
 
       rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
-      // override iframe sandbox supaya JS bisa jalan di GitHub Pages
+      // Fix sandbox iframe supaya scripts jalan
       setTimeout(() => {
         const iframe = viewer.querySelector("iframe");
         if (iframe) iframe.setAttribute("sandbox","allow-scripts allow-same-origin");
       }, 100);
 
+      // Theme maximize supaya teks lebih besar
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -53,7 +54,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF =====
+// ===== Convert EPUB → PDF per blok =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
@@ -81,23 +82,31 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      const canvas = await html2canvas(body, { scale: 2, backgroundColor: "#ffffff" });
-      if (!canvas.width || !canvas.height) continue;
+      // ===== Ambil tiap blok div, section, p, h1-h6, img =====
+      const blocks = Array.from(body.querySelectorAll("div, section, p, h1, h2, h3, h4, h5, h6, img"));
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const scale = Math.min((pageWidth - 2*margin)/canvas.width, (pageHeight - 2*margin)/canvas.height);
-      const imgW = canvas.width * scale;
-      const imgH = canvas.height * scale;
-      const posX = (pageWidth - imgW)/2;
-      const posY = (pageHeight - imgH)/2;
+      for (let blk of blocks) {
+        if (!blk.offsetParent) continue; // skip hidden
+        if (!blk.innerText.trim() && blk.tagName !== "IMG") continue; // skip empty text
 
-      pdf.addPage();
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+        const canvas = await html2canvas(blk, { scale: 2, backgroundColor: "#ffffff" });
+        if (!canvas.width || !canvas.height) continue;
 
-      pageCount++;
-      const percent = Math.round((pageCount / spineItems.length)*100);
-      progressBar.value = percent;
-      progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const scale = Math.min((pageWidth - 2*margin)/canvas.width, (pageHeight - 2*margin)/canvas.height);
+        const imgW = canvas.width * scale;
+        const imgH = canvas.height * scale;
+        const posX = (pageWidth - imgW)/2;
+        const posY = (pageHeight - imgH)/2;
+
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+
+        pageCount++;
+        const percent = Math.round((pageCount / spineItems.length)*100);
+        progressBar.value = percent;
+        progressText.textContent = `Rendering ${pageCount} pages...`;
+      }
     }
 
     pdf.save("idcrypt-epub-final.pdf");
