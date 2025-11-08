@@ -1,5 +1,5 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Super Canggih Fixed)
+// 📘 IDCRYPT EPUB → PDF Converter (Final Super Fix)
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -30,6 +30,12 @@ function handleEpubSelect(e) {
       book = ePub(data);
       rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
+      // override sandbox iframe
+      setTimeout(() => {
+        const iframe = viewer.querySelector("iframe");
+        if (iframe) iframe.setAttribute("sandbox","allow-scripts allow-same-origin");
+      }, 100);
+
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
@@ -47,7 +53,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF (Super Hybrid + Column-Aware Fixed) =====
+// ===== Step 2: Convert EPUB → PDF =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
@@ -75,7 +81,6 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // ===== Ambil blok teks/gambar =====
       const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
       let cursorY = margin;
 
@@ -83,14 +88,13 @@ convertBtn.addEventListener("click", async () => {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
         if (blk.offsetParent === null) continue; // skip invisible
 
-        // ===== Jika gambar atau kolom multi: snapshot per element =====
         if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
           const columns = blk.tagName === "IMG" ? [blk] : Array.from(blk.children.length ? blk.children : [blk]);
           for (let col of columns) {
             if (col.offsetParent === null) continue;
 
             const canvas = await html2canvas(col, { scale: 2, backgroundColor: "#ffffff" });
-            if (!canvas.width || !canvas.height) continue; // skip invalid canvas
+            if (!canvas.width || !canvas.height) continue;
 
             const imgData = canvas.toDataURL("image/jpeg", 0.95);
             const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
@@ -104,7 +108,6 @@ convertBtn.addEventListener("click", async () => {
           }
 
         } else {
-          // ===== Teks biasa: block-aware =====
           const text = blk.innerText.trim();
           if (!text) continue;
 
@@ -130,7 +133,7 @@ convertBtn.addEventListener("click", async () => {
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-super-fixed.pdf");
+    pdf.save("idcrypt-epub-final.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
