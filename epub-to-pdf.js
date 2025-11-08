@@ -41,39 +41,50 @@ convertBtn.addEventListener("click", async () => {
 
     for (let i = 0; i < spineItems.length; i++) {
       const section = spineItems[i];
-      const html = await section.load(book.load.bind(book));
 
-      // Parse isi bab
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      // Ambil teks bersih tanpa tag
-      const text = doc.body ? doc.body.innerText.trim() : "";
-
-      // Ambil judul bab dari manifest, kalau ada
-      const title = section.idref || `Chapter ${i + 1}`;
-
-      if (text.length > 0) {
-        // Tambah judul bab
-        pdf.setFontSize(14);
-        pdf.text(title, 50, 60);
-        pdf.setFontSize(11);
-
-        const lines = pdf.splitTextToSize(text, 500);
-        let y = 80;
-
-        for (let j = 0; j < lines.length; j++) {
-          if (y > 750) { // batas halaman
-            pdf.addPage();
-            page++;
-            y = 60;
-          }
-          pdf.text(lines[j], 50, y);
-          y += 14;
-        }
-
-        if (i < spineItems.length - 1) pdf.addPage();
+      // Lewati halaman "titlepage" atau "cover"
+      if (/titlepage|cover/i.test(section.href)) {
+        console.log(`Skipping ${section.href}`);
+        continue;
       }
+
+      let htmlContent = "";
+      try {
+        const rendered = await section.render();
+        htmlContent = rendered && rendered.html ? rendered.html : "";
+      } catch {
+        const raw = await section.load(book.load.bind(book));
+        htmlContent = typeof raw === "string" ? raw : raw.outerHTML || "";
+      }
+
+      if (!htmlContent.trim()) continue;
+
+      // Parse HTML ke teks
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+      const cleanText = doc.body ? doc.body.innerText.trim() : "";
+
+      if (!cleanText) continue;
+
+      const title = section.idref || `Chapter ${i + 1}`;
+      pdf.setFontSize(14);
+      pdf.text(title, 50, 60);
+      pdf.setFontSize(11);
+
+      const lines = pdf.splitTextToSize(cleanText, 500);
+      let y = 80;
+
+      for (let j = 0; j < lines.length; j++) {
+        if (y > 750) {
+          pdf.addPage();
+          page++;
+          y = 60;
+        }
+        pdf.text(lines[j], 50, y);
+        y += 14;
+      }
+
+      if (i < spineItems.length - 1) pdf.addPage();
     }
 
     pdf.save("converted.pdf");
