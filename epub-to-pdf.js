@@ -1,7 +1,7 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
 // Render EPUB pages visually using epub.js + html2canvas + jsPDF
-// Lebar konten maksimal A4, tinggi otomatis split, live progress
+// Lebar konten menyesuaikan A4, tulisan tetap proporsional
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -33,11 +33,14 @@ function handleEpubSelect(e) {
     try {
       if (book) book.destroy();
       book = ePub(data);
+
+      // Render EPUB dengan width A4 supaya font & layout menyesuaikan
       rendition = book.renderTo("viewer", {
-        width: 800,
-        height: 1200,
-        spread: "none",
+        width: 595,    // A4 width pt
+        height: 1200,  // tinggi fleksibel
+        spread: "none"
       });
+
       convertBtn.disabled = false;
       setStatus("✅ EPUB loaded successfully! Ready to convert.");
       progressText.textContent = "Ready to start conversion.";
@@ -59,8 +62,8 @@ convertBtn.addEventListener("click", async () => {
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = 595;  // A4 width in pt
-  const pageHeight = 842; // A4 height in pt
+  const pageWidth = 595;
+  const pageHeight = 842;
 
   try {
     const spineItems = book.spine.spineItems;
@@ -80,21 +83,22 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
+      // Capture halaman dengan html2canvas
       const canvas = await html2canvas(pageBody, {
-        scale: 3,
+        scale: 2, // cukup untuk tajam tapi font tetap proporsional
         useCORS: true,
         allowTaint: true,
-        backgroundColor: "#ffffff",
+        backgroundColor: "#ffffff"
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // ===== Maksimalkan lebar konten A4 =====
+      // Lebar konten menyesuaikan A4
       const scale = pageWidth / canvas.width;
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
 
-      // ===== Split halaman tinggi jika perlu =====
+      // Split halaman tinggi jika lebih dari A4
       let yOffset = 0;
       while (yOffset < imgH) {
         pdf.addPage([pageWidth, pageHeight]);
