@@ -37,19 +37,42 @@ convertBtn.addEventListener("click", async () => {
 
   try {
     const spineItems = book.spine.spineItems;
-    let y = 60;
+    let page = 1;
 
     for (let i = 0; i < spineItems.length; i++) {
       const section = spineItems[i];
-      const contents = await section.load(book.load.bind(book)); // ambil isi bab
+      const html = await section.load(book.load.bind(book));
+
+      // Parse isi bab
       const parser = new DOMParser();
-      const doc = parser.parseFromString(contents, "text/html");
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Ambil teks bersih tanpa tag
       const text = doc.body ? doc.body.innerText.trim() : "";
 
+      // Ambil judul bab dari manifest, kalau ada
+      const title = section.idref || `Chapter ${i + 1}`;
+
       if (text.length > 0) {
+        // Tambah judul bab
+        pdf.setFontSize(14);
+        pdf.text(title, 50, 60);
+        pdf.setFontSize(11);
+
         const lines = pdf.splitTextToSize(text, 500);
-        pdf.text(lines, 50, y);
-        pdf.addPage();
+        let y = 80;
+
+        for (let j = 0; j < lines.length; j++) {
+          if (y > 750) { // batas halaman
+            pdf.addPage();
+            page++;
+            y = 60;
+          }
+          pdf.text(lines[j], 50, y);
+          y += 14;
+        }
+
+        if (i < spineItems.length - 1) pdf.addPage();
       }
     }
 
@@ -57,8 +80,8 @@ convertBtn.addEventListener("click", async () => {
     statusDiv.innerHTML = "<p>✅ Conversion complete! Your PDF is ready.</p>";
     previewDiv.innerHTML = "<p>Done — check your download folder.</p>";
   } catch (err) {
-    statusDiv.innerHTML = `<p style='color:red;'>Conversion failed: ${err.message}</p>`;
     console.error(err);
+    statusDiv.innerHTML = `<p style='color:red;'>Conversion failed: ${err.message}</p>`;
   }
 
   convertBtn.disabled = false;
