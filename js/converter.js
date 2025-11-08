@@ -1,5 +1,5 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Super Canggih Hybrid + Column-Aware)
+// 📘 IDCRYPT EPUB → PDF Converter (Super Canggih Fixed)
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -47,7 +47,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF (Super Hybrid + Column-Aware) =====
+// ===== Step 2: Convert EPUB → PDF (Super Hybrid + Column-Aware Fixed) =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
@@ -81,20 +81,26 @@ convertBtn.addEventListener("click", async () => {
 
       for (let blk of blocks) {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
+        if (blk.offsetParent === null) continue; // skip invisible
 
-        // ===== Jika gambar atau kolom multi: snapshot =====
+        // ===== Jika gambar atau kolom multi: snapshot per element =====
         if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
-          // Split multi-column: coba setiap direct child div
           const columns = blk.tagName === "IMG" ? [blk] : Array.from(blk.children.length ? blk.children : [blk]);
           for (let col of columns) {
+            if (col.offsetParent === null) continue;
+
             const canvas = await html2canvas(col, { scale: 2, backgroundColor: "#ffffff" });
+            if (!canvas.width || !canvas.height) continue; // skip invalid canvas
+
             const imgData = canvas.toDataURL("image/jpeg", 0.95);
             const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-            const imgW = canvas.width * scale;
-            const imgH = canvas.height * scale;
+            const imgW = Math.max(canvas.width * scale, 1);
+            const imgH = Math.max(canvas.height * scale, 1);
+            const posX = Math.max((pageWidth - imgW)/2, 0);
+            const posY = margin;
 
             pdf.addPage();
-            pdf.addImage(imgData, "JPEG", (pageWidth - imgW)/2, margin, imgW, imgH);
+            pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
           }
 
         } else {
@@ -124,7 +130,7 @@ convertBtn.addEventListener("click", async () => {
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-super.pdf");
+    pdf.save("idcrypt-epub-super-fixed.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
