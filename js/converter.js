@@ -1,5 +1,5 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Blogspot Embed, UMD build)
+// 📘 IDCRYPT EPUB → PDF Converter (GitHub-ready, UMD jsPDF)
 // One horizontal element per A4, skip empty, scale text
 // ============================================================
 
@@ -34,11 +34,12 @@ function handleEpubSelect(e) {
       book = ePub(data);
 
       rendition = book.renderTo("viewer", {
-        width: 595, // A4 width
+        width: 595, // A4 width in pt
         height: 1200,
         spread: "none"
       });
 
+      // Maksimalkan font & gambar agar readable di A4
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
         "img": { maxWidth: "100% !important", height: "auto !important" },
