@@ -1,6 +1,6 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// Maximize EPUB layout for A4 PDF, force content width & font
+// One EPUB page per PDF page, enlarge text for readability, skip empty pages
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -33,14 +33,13 @@ function handleEpubSelect(e) {
       if (book) book.destroy();
       book = ePub(data);
 
-      // Render EPUB dengan A4 width supaya font & layout menyesuaikan
       rendition = book.renderTo("viewer", {
         width: 595,    // A4 width in pt
         height: 1200,
         spread: "none"
       });
 
-      // ===== Override layout CSS untuk memperbesar halaman =====
+      // Override layout untuk maksimal lebar dan font terbaca
       rendition.themes.register("maximize", {
         "body": {
           width: "100% !important",
@@ -97,11 +96,10 @@ convertBtn.addEventListener("click", async () => {
       if (!iframe) continue;
 
       const pageBody = iframe.contentDocument?.body;
-      if (!pageBody) continue;
+      if (!pageBody || !pageBody.innerText.trim()) continue; // skip empty
 
-      // Tangkap halaman
       const canvas = await html2canvas(pageBody, {
-        scale: 2, // tajam, tapi proporsional
+        scale: 2, 
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff"
@@ -109,18 +107,16 @@ convertBtn.addEventListener("click", async () => {
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-      // Lebar konten maksimal A4
-      const scale = pageWidth / canvas.width;
+      // scale selektif untuk memperbesar tulisan, tapi satu halaman per EPUB
+      const scale = Math.min(pageWidth / canvas.width, 1.5); // jangan over-scale
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
 
-      // Split halaman tinggi jika > A4
-      let yOffset = 0;
-      while (yOffset < imgH) {
-        pdf.addPage([pageWidth, pageHeight]);
-        pdf.addImage(imgData, "JPEG", 0, -yOffset, imgW, imgH);
-        yOffset += pageHeight;
-      }
+      const posX = (pageWidth - imgW) / 2;
+      const posY = (pageHeight - imgH) / 2;
+
+      pdf.addPage([pageWidth, pageHeight]);
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
       pageCount++;
       const percent = Math.round((pageCount / total) * 100);
