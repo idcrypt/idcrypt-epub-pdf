@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDCRYPT EPUB → PDF Converter</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="libs/epub.min.js"></script>
+  <script src="libs/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
+    <p>Convert your .epub ebooks into downloadable PDFs — 100% offline in your browser.</p>
+
+    <div class="upload-box">
+      <label for="epubInput" class="upload-label">Select EPUB File</label>
+      <input type="file" id="epubInput" accept=".epub" hidden>
+    </div>
+
+    <div id="status"></div>
+    <button id="convertBtn" disabled>Convert to PDF</button>
+
+    <div id="preview" class="preview"></div>
+  </div>
+
+  <footer>
+    <p>Built by <strong>IDCRYPT</strong> • Open-source on GitHub</p>
+  </footer>
+
+  <script src="epub-to-pdf.js"></script>
+</body>
+</html>
