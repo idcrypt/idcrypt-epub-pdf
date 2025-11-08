@@ -1,6 +1,6 @@
 // ============================================================
 // 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
-// One horizontal item per A4, scale text, skip empty elements
+// Optimized: One horizontal element per A4, skip empty, scale text
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -34,25 +34,16 @@ function handleEpubSelect(e) {
       book = ePub(data);
 
       rendition = book.renderTo("viewer", {
-        width: 595,    // A4 width
+        width: 595, // A4 width
         height: 1200,
         spread: "none"
       });
 
-      // Override CSS: full width, readable font
+      // CSS override: full width, readable font
       rendition.themes.register("maximize", {
-        "body": {
-          width: "100% !important",
-          minWidth: "595px !important",
-          fontSize: "14pt !important"
-        },
-        "img": {
-          maxWidth: "100% !important",
-          height: "auto !important"
-        },
-        "*": {
-          boxSizing: "border-box !important"
-        }
+        "body": { width: "100% !important", minWidth: "595px !important", fontSize: "14pt !important" },
+        "img": { maxWidth: "100% !important", height: "auto !important" },
+        "*": { boxSizing: "border-box !important" }
       });
       rendition.themes.select("maximize");
 
@@ -67,7 +58,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF per horizontal item =====
+// ===== Step 2: Convert EPUB → PDF per horizontal element =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
 
@@ -96,11 +87,12 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
-      // Ambil setiap "I" horizontal → setiap anak langsung satu A4
+      // Ambil semua elemen horizontal utama
       const horizontalItems = pageBody.querySelectorAll("div, span, p"); // sesuaikan selector EPUB
       for (let hItem of horizontalItems) {
         if (!hItem.innerText.trim()) continue; // skip kosong
 
+        // Buat snapshot satu elemen
         const canvas = await html2canvas(hItem, {
           scale: 2,
           useCORS: true,
@@ -139,11 +131,11 @@ convertBtn.addEventListener("click", async () => {
 
 // ===== Utilities =====
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function waitForRender(rendition) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const handler = () => {
       rendition.off("rendered", handler);
       resolve();
