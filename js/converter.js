@@ -54,7 +54,7 @@ function handleEpubSelect(e) {
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Convert EPUB → PDF per blok wajar =====
+// ===== Convert EPUB → PDF per halaman EPUB =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
   convertBtn.disabled = true;
@@ -82,30 +82,24 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // ===== Ambil tiap blok wajar =====
-      const blocks = Array.from(body.querySelectorAll("div, section, figure, img"));
-      for (let blk of blocks) {
-        if (!blk.offsetParent) continue; // skip hidden
-        if (!blk.innerText.trim() && blk.tagName !== "IMG") continue; // skip kosong
+      // ===== Ambil snapshot seluruh halaman EPUB =====
+      const canvas = await html2canvas(body, { scale: 2, backgroundColor: "#ffffff" });
+      if (!canvas.width || !canvas.height) continue;
 
-        const canvas = await html2canvas(blk, { scale: 2, backgroundColor: "#ffffff" });
-        if (!canvas.width || !canvas.height) continue;
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const scale = Math.min((pageWidth - 2*margin)/canvas.width, (pageHeight - 2*margin)/canvas.height);
+      const imgW = canvas.width * scale;
+      const imgH = canvas.height * scale;
+      const posX = (pageWidth - imgW)/2;
+      const posY = (pageHeight - imgH)/2;
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const scale = Math.min((pageWidth - 2*margin)/canvas.width, (pageHeight - 2*margin)/canvas.height);
-        const imgW = canvas.width * scale;
-        const imgH = canvas.height * scale;
-        const posX = (pageWidth - imgW)/2;
-        const posY = (pageHeight - imgH)/2;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
-
-        pageCount++;
-        const percent = Math.round((pageCount / spineItems.length)*100);
-        progressBar.value = percent;
-        progressText.textContent = `Rendering ${pageCount} pages...`;
-      }
+      pageCount++;
+      const percent = Math.round((pageCount / spineItems.length)*100);
+      progressBar.value = percent;
+      progressText.textContent = `Rendering ${pageCount} pages...`;
     }
 
     pdf.save("idcrypt-epub-final.pdf");
