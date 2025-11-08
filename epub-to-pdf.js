@@ -1,3 +1,9 @@
+// ============================================================
+// 📘 IDCRYPT EPUB → PDF Converter (Visual Capture Version)
+// Render EPUB pages visually using epub.js + html2canvas + jsPDF
+// Uniform page size, images, CSS, and live progress
+// ============================================================
+
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
 const statusDiv = document.getElementById("status");
@@ -7,8 +13,9 @@ const viewer = document.getElementById("viewer");
 
 let book, rendition;
 
+// ===== Helper: show messages =====
 function setStatus(msg, color = "#333") {
-  statusDiv.innerHTML = `<p style="color:${color}">${msg}</p>`;
+  statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
   console.log(msg);
 }
 
@@ -22,20 +29,20 @@ function handleEpubSelect(e) {
   setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
 
-  reader.onload = function(evt) {
+  reader.onload = function (evt) {
     const data = evt.target.result;
     try {
-      if (book) book.destroy();
+      if (book) book.destroy(); // clear previous book
       book = ePub(data);
       rendition = book.renderTo("viewer", {
         width: 800,
         height: 1200,
-        spread: "none"
+        spread: "none",
       });
       convertBtn.disabled = false;
       setStatus("✅ EPUB loaded successfully! Ready to convert.");
       progressText.textContent = "Ready to start conversion.";
-    } catch(err) {
+    } catch (err) {
       setStatus(`Error loading EPUB: ${err.message}`, "red");
     }
   };
@@ -52,9 +59,9 @@ convertBtn.addEventListener("click", async () => {
   progressText.textContent = "Rendering pages...";
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = 595;  // A4 pt
-  const pageHeight = 842; // A4 pt
+  const pdf = new jsPDF({ unit: "pt", format: "a4" }); // A4
+  const pageWidth = 595;  // A4 width in pt
+  const pageHeight = 842; // A4 height in pt
 
   try {
     const spineItems = book.spine.spineItems;
@@ -74,15 +81,17 @@ convertBtn.addEventListener("click", async () => {
       const pageBody = iframe.contentDocument?.body;
       if (!pageBody) continue;
 
+      // Tangkap halaman asli tanpa clone/wrapper
       const canvas = await html2canvas(pageBody, {
-        scale: 2,
+        scale: 3,               // tinggi supaya tajam
         useCORS: true,
         allowTaint: true,
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
+      // Maksimalkan hasil PDF: proporsional dan center
       const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
       const imgW = canvas.width * scale;
       const imgH = canvas.height * scale;
@@ -94,14 +103,15 @@ convertBtn.addEventListener("click", async () => {
       pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
 
       pageCount++;
-      progressBar.value = Math.round((pageCount / total) * 100);
-      progressText.textContent = `Rendering ${pageCount} of ${total} pages...`;
+      const percent = Math.round((pageCount / total) * 100);
+      progressBar.value = percent;
+      progressText.textContent = `Rendering ${pageCount} of ${total} pages (${percent}%)...`;
     }
 
     pdf.save("idcrypt-epub.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     setStatus(`❌ Conversion failed: ${err.message}`, "red");
     progressText.textContent = "Error during conversion.";
@@ -112,12 +122,15 @@ convertBtn.addEventListener("click", async () => {
 
 // ===== Utilities =====
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function waitForRender(rendition) {
-  return new Promise(resolve => {
-    const handler = () => { rendition.off("rendered", handler); resolve(); };
+  return new Promise((resolve) => {
+    const handler = () => {
+      rendition.off("rendered", handler);
+      resolve();
+    };
     rendition.on("rendered", handler);
   });
 }
