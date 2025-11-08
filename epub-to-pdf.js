@@ -103,16 +103,17 @@ const canvas = await html2canvas(pageBody, {
 
 
       const imgData = canvas.toDataURL("image/jpeg", 0.9);
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-      const imgW = canvas.width * ratio;
-      const imgH = canvas.height * ratio;
-      const posX = (pageWidth - imgW) / 2;
-      const posY = 0;
+const imgWidth = canvas.width;
+const imgHeight = canvas.height;
+const pdfWidth = imgWidth * 0.75; // konversi px ke pt (1px ≈ 0.75pt)
+const pdfHeight = imgHeight * 0.75;
 
-      if (pageCount > 0) pdf.addPage();
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+// buat halaman baru sesuai ukuran gambar
+if (pageCount > 0) pdf.addPage([pdfWidth, pdfHeight]);
+else pdf.setPage(1);
+
+pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+
 
       pageCount++;
 
