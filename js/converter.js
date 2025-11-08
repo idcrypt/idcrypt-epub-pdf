@@ -1,6 +1,6 @@
 // ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (DOM-based, Ultra-Rapi, Block-Aware)
-// One block/column → one A4 page, no text overlapping
+// 📘 IDCRYPT EPUB → PDF Converter Hybrid
+// Block-aware + Snapshot per column/image
 // ============================================================
 
 const epubInput = document.getElementById("epubInput");
@@ -17,7 +17,7 @@ function setStatus(msg, color = "#333") {
   console.log(msg);
 }
 
-// ===== Step 1: Handle EPUB Upload =====
+// ===== Step 1: EPUB Upload =====
 epubInput.addEventListener("change", handleEpubSelect);
 
 function handleEpubSelect(e) {
@@ -26,18 +26,13 @@ function handleEpubSelect(e) {
 
   setStatus(`Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
-
   reader.onload = function(evt) {
     const data = evt.target.result;
     try {
       if (book) book.destroy();
       book = ePub(data);
 
-      rendition = book.renderTo("viewer", {
-        width: 595, // A4 width in pt
-        height: 1200,
-        spread: "none"
-      });
+      rendition = book.renderTo("viewer", { width: 595, height: 1200, spread: "none" });
 
       rendition.themes.register("maximize", {
         "body": { width: "100% !important", fontSize: "14pt !important", lineHeight: "1.3" },
@@ -53,15 +48,14 @@ function handleEpubSelect(e) {
       setStatus(`Error loading EPUB: ${err.message}`, "red");
     }
   };
-
   reader.readAsArrayBuffer(file);
 }
 
-// ===== Step 2: Convert EPUB → PDF (per block-aware) =====
+// ===== Step 2: Convert EPUB → PDF Hybrid =====
 convertBtn.addEventListener("click", async () => {
   if (!book || !rendition) return;
-
   convertBtn.disabled = true;
+
   setStatus("Starting conversion...");
   progressText.textContent = "Rendering pages...";
 
@@ -86,48 +80,39 @@ convertBtn.addEventListener("click", async () => {
       const body = iframe.contentDocument?.body;
       if (!body || !body.innerText.trim()) continue;
 
-      // Ambil blok utama: div/section/p/img/h1-h3
+      // Ambil blok teks & gambar
       const blocks = Array.from(body.querySelectorAll("div, section, p, img, h1, h2, h3"));
-
       let cursorY = margin;
 
       for (let blk of blocks) {
         if (!blk.innerText && blk.tagName !== "IMG") continue;
 
-        if (blk.tagName === "IMG") {
-          const image = new Image();
-          image.src = blk.src;
+        // ===== Jika gambar atau multi-kolom: snapshot per element =====
+        if (blk.tagName === "IMG" || blk.scrollWidth > pageWidth*0.9) {
+          const canvas = await html2canvas(blk, { scale: 2, backgroundColor: "#ffffff" });
+          const imgData = canvas.toDataURL("image/jpeg", 0.95);
+          const scale = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+          const imgW = canvas.width * scale;
+          const imgH = canvas.height * scale;
 
-          await new Promise((res, rej) => {
-            image.onload = () => {
-              const scale = Math.min((pageWidth - 2*margin)/image.width, (pageHeight - 2*margin)/image.height);
-              const imgW = image.width * scale;
-              const imgH = image.height * scale;
-
-              // Block-aware page break
-              if (cursorY + imgH > pageHeight - margin) {
-                pdf.addPage();
-                cursorY = margin;
-              }
-
-              pdf.addImage(image, "JPEG", (pageWidth - imgW)/2, cursorY, imgW, imgH);
-              cursorY += imgH + 10;
-              res();
-            };
-            image.onerror = rej;
-          });
+          if (cursorY + imgH > pageHeight - margin) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+          pdf.addImage(imgData, "JPEG", (pageWidth-imgW)/2, cursorY, imgW, imgH);
+          cursorY += imgH + 10;
 
         } else {
+          // ===== Teks biasa: block-aware =====
           const text = blk.innerText.trim();
           if (!text) continue;
 
           const fontSize = 14;
           pdf.setFontSize(fontSize);
-          const lineHeight = fontSize * 1.3;
+          const lineHeight = fontSize*1.3;
           const lines = pdf.splitTextToSize(text, pageWidth - 2*margin);
-          const blockHeight = lines.length * lineHeight + 8; // spacing antar blok
+          const blockHeight = lines.length*lineHeight + 8;
 
-          // Block-aware page break
           if (cursorY + blockHeight > pageHeight - margin) {
             pdf.addPage();
             cursorY = margin;
@@ -139,12 +124,12 @@ convertBtn.addEventListener("click", async () => {
       }
 
       pageCount++;
-      const percent = Math.round((pageCount / spineItems.length) * 100);
+      const percent = Math.round((pageCount / spineItems.length)*100);
       progressBar.value = percent;
       progressText.textContent = `Rendering ${pageCount} of ${spineItems.length} spine items (${percent}%)...`;
     }
 
-    pdf.save("idcrypt-epub-final-block.pdf");
+    pdf.save("idcrypt-epub-hybrid.pdf");
     setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
     progressText.textContent = "All done — check your Downloads folder!";
   } catch (err) {
@@ -157,16 +142,10 @@ convertBtn.addEventListener("click", async () => {
 });
 
 // ===== Utilities =====
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function waitForRender(rendition) {
   return new Promise(resolve => {
-    const handler = () => {
-      rendition.off("rendered", handler);
-      resolve();
-    };
+    const handler = () => { rendition.off("rendered", handler); resolve(); };
     rendition.on("rendered", handler);
   });
 }
