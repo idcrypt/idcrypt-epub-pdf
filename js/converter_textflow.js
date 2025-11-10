@@ -1,54 +1,47 @@
-// ===== IDCRYPT EPUB → PDF Converter (TextFlow Auto Multi-Page v2) =====
-
+// ===== IDCRYPT EPUB → PDF Converter (TextFlow Auto Multi-Page) =====
 document.getElementById("convertBtn").addEventListener("click", async () => {
   const { jsPDF } = window.jspdf;
 
-  // Pastikan buku sudah diload oleh reader.js
-  if (!window.book || !window.book.spine || !window.book.spine.spineItems) {
+  // ✅ Cek EPUB sudah dimuat
+  if (!window.book) {
     setStatus("❌ No EPUB loaded. Please open one first.", "red");
     return;
   }
 
   const book = window.book;
-  const spineItems = book.spine.spineItems;
-  if (!spineItems || spineItems.length === 0) {
-    setStatus("❌ No readable content in EPUB.", "red");
+  setStatus("📚 Extracting and formatting text from EPUB...", "blue");
+
+  // Ambil spine items secara benar dari epub.js
+  const spine = await book.loaded.spine;
+  const items = spine.items;
+  if (!items || items.length === 0) {
+    setStatus("❌ EPUB spine empty.", "red");
     return;
   }
 
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 50;
+  const margin = 40;
   const maxWidth = pageWidth - margin * 2;
   const lineHeight = 18;
-  const paraSpacing = 10;
   let y = margin;
 
-  setStatus("📚 Extracting and formatting text from EPUB...", "#0044aa");
-  setProgress(5, "Starting text extraction...");
+  const total = items.length;
+  let count = 0;
 
-  let processed = 0;
-  const total = spineItems.length;
-
-  for (const item of spineItems) {
+  for (const item of items) {
     try {
-      // Ambil konten tiap bab
       const content = await item.load(book.load.bind(book));
       const html = new TextDecoder().decode(content.contents);
       const tmpDiv = document.createElement("div");
       tmpDiv.innerHTML = html;
 
-      // Hapus elemen yang tidak dibutuhkan
-      tmpDiv.querySelectorAll("script, style, sup, a, img, svg").forEach(el => el.remove());
-
-      // Ambil teks bersih
-      let text = tmpDiv.innerText.replace(/\s+/g, " ").trim();
+      // Bersihkan konten, ambil teks murni
+      const text = tmpDiv.innerText.replace(/\s+/g, " ").trim();
       if (!text) continue;
 
-      // Pisahkan paragraf
       const paragraphs = text.split(/\n+/);
-
       for (let para of paragraphs) {
         const lines = pdf.splitTextToSize(para, maxWidth);
         for (let line of lines) {
@@ -59,22 +52,41 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
           pdf.text(line, margin, y);
           y += lineHeight;
         }
-        y += paraSpacing;
+        y += lineHeight * 0.8;
       }
-
-      processed++;
-      const percent = Math.round((processed / total) * 100);
-      setProgress(percent, `Converting chapter ${processed}/${total}...`);
-      await sleep(300);
-
     } catch (err) {
-      console.error("Error reading spine item:", err);
+      console.warn("❌ Error loading item:", err);
     }
+
+    count++;
+    const percent = Math.round((count / total) * 100);
+    setProgress(percent, `Converting chapter ${count}/${total}...`);
+    await sleep(200);
   }
 
-  setProgress(95, "Finalizing PDF...");
-  await sleep(500);
   pdf.save("idcrypt-epub-textflow.pdf");
-  setProgress(100, "✅ Done!");
   setStatus("✅ Conversion complete! PDF downloaded.", "green");
+  setProgress(100, "Done!");
 });
+
+// === helper ===
+function sleep(ms) {
+  return new Promise(res => setTimeout(res, ms));
+}
+
+function setStatus(msg, color) {
+  const el = document.getElementById("status");
+  if (el) {
+    el.style.color = color || "#fff";
+    el.innerHTML = msg;
+  } else {
+    console.log(msg);
+  }
+}
+
+function setProgress(val, msg) {
+  const bar = document.getElementById("progressBar");
+  const status = document.getElementById("status");
+  if (bar) bar.value = val;
+  if (status) status.innerText = msg;
+}
