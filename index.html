@@ -2,28 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IDCRYPT EPUB → PDF Converter</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- ===== JS Libraries ===== -->
+  <script src="js/jszip.min.js" defer></script>
+  <script src="js/epub.min.js" defer></script>
+  <script src="js/html2canvas.min.js" defer></script>
+  <script src="js/jspdf.umd.min.js" defer></script>
+
+  <!-- ===== App Scripts (Order Matters) ===== -->
+  <script src="js/utils.js" defer></script>
+  <script src="js/reader.js" defer></script>
+  <script src="js/converter.js" defer></script>
 </head>
+
 <body>
   <div class="container">
-    <h2>📘 IDCRYPT EPUB → PDF Converter</h2>
-    <input type="file" id="epubInput" accept=".epub">
-    <button id="convertBtn">Convert to PDF</button>
-    <div id="status"></div>
-    <progress id="progressBar" value="0" max="100"></progress>
-    <div id="viewer"></div>
+    <header>
+      <h1>📚 IDCRYPT EPUB → PDF Converter</h1>
+      <p class="subtitle">Render & convert your EPUB books into printable PDFs — beautifully.</p>
+    </header>
+
+    <section class="controls">
+      <label for="epubInput" class="file-label">Select EPUB File:</label>
+      <input type="file" id="epubInput" accept=".epub">
+      <button id="convertBtn" disabled>Convert to PDF</button>
+    </section>
+
+    <section class="progress-section">
+      <progress id="progress" value="0" max="100"></progress>
+      <span id="progressText">Waiting for file...</span>
+    </section>
+
+    <div id="status" class="status-box">No file loaded yet.</div>
+
+    <section id="viewer" class="viewer"></section>
+
+    <footer>
+      <p>⚡ Powered by <strong>IDCRYPT</strong> — Web3 Open Publishing Initiative.</p>
+    </footer>
   </div>
-
-  <!-- Libs -->
-  <script src="js/jszip.min.js"></script>
-  <script src="js/epub.min.js"></script>
-  <script src="js/html2canvas.min.js"></script>
-  <script src="js/jspdf.umd.min.js"></script>
-
-  <!-- Custom scripts -->
-  <script src="utils.js"></script>
-  <script src="reader.js"></script>
-  <script src="converter.js"></script>
 </body>
 </html>
