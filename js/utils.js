@@ -3,14 +3,14 @@ function sleep(ms) {
 }
 
 function setStatus(msg, color = "#333") {
-  const div = document.getElementById("status");
-  div.innerHTML = `<p style="color:${color};">${msg}</p>`;
+  const statusDiv = document.getElementById("status");
+  if (statusDiv) statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
   console.log(msg);
 }
 
-function setProgress(val, text) {
+function setProgress(value, text) {
   const bar = document.getElementById("progress");
+  if (bar) bar.value = value;
   const txt = document.getElementById("progressText");
-  bar.value = val;
-  txt.textContent = text || "";
+  if (txt) txt.innerText = text || "";
 }
