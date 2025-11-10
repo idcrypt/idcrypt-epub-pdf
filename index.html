@@ -4,14 +4,16 @@
   <meta charset="UTF-8">
   <title>IDCRYPT EPUB → PDF Converter</title>
   <link rel="stylesheet" href="style.css">
-  <script src="js/jszip.min.js"></script>
-  <script src="js/epub.min.js"></script>
-  <script src="js/html2canvas.min.js"></script>
-  <script src="js/jspdf.umd.min.js"></script>
+  <script src="js/jszip.min.js" defer></script>
+  <script src="js/epub.min.js" defer></script>
+  <script src="js/html2canvas.min.js" defer></script>
+  <script src="js/jspdf.umd.min.js" defer></script>
+  <script src="js/reader.js" defer></script>
+  <script src="js/converter.js" defer></script>
 </head>
 <body>
   <div class="container">
-    <h1>IDCRYPT EPUB → PDF Converter</h1>
+    <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
 
     <div class="controls">
       <input type="file" id="epubInput" accept=".epub">
@@ -24,30 +26,15 @@
     </div>
 
     <div id="status"></div>
+
+    <!-- EPUB viewer -->
     <div id="viewer" class="viewer"></div>
+
+    <!-- Optional navigation for preview -->
+    <div class="nav">
+      <button id="prevPage">◀ Prev</button>
+      <button id="nextPage">Next ▶</button>
+    </div>
   </div>
-
-  <script type="module">
-    import { loadEpub } from './js/reader.js';
-    import './js/converter.js';
-
-    const epubInput = document.getElementById("epubInput");
-    const statusDiv = document.getElementById("status");
-    const convertBtn = document.getElementById("convertBtn");
-    const viewer = document.getElementById("viewer");
-
-    epubInput.addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      statusDiv.innerHTML = `<p>Loading <strong>${file.name}</strong>...</p>`;
-      loadEpub(file, viewer,
-        () => {
-          convertBtn.disabled = false;
-          statusDiv.innerHTML = `<p style="color:green;">✅ EPUB loaded successfully!</p>`;
-        },
-        err => statusDiv.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`
-      );
-    });
-  </script>
 </body>
 </html>
