@@ -1,51 +1,57 @@
-// ===== IDCRYPT EPUB Reader (epub.js) =====
-const epubInput = document.getElementById("epubInput");
+// reader.js
+window._idcrypt = window._idcrypt || {};
+let book = null;
+let rendition = null;
+
+const input = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
-const viewer = document.getElementById("viewer");
 
-let book, rendition;
-
-epubInput.addEventListener("change", handleEpubSelect);
-
-async function handleEpubSelect(e) {
+input.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  setStatus(`Loading ${file.name} ...`);
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    if (book) try { book.destroy(); } catch(e){}
+    book = ePub(arrayBuffer);
+    window._idcrypt.book = book;
 
-  setStatus(`📖 Loading <strong>${file.name}</strong>...`);
-  const reader = new FileReader();
+    // render to viewer for preview (safe)
+    const viewer = document.getElementById("viewer");
+    viewer.innerHTML = ""; // clear
+    rendition = book.renderTo("viewer", {
+      width: "100%",
+      height: "100%",
+      spread: "none",
+      flow: "paginated"
+    });
+    window._idcrypt.rendition = rendition;
 
-  reader.onload = async function(evt) {
-    const data = evt.target.result;
+    // apply simple theme for readability
+    rendition.themes.register("idcrypt", {
+      "body": { "font-size": "14pt", "line-height": "1.4", "color": "#111", "background": "#fff", "margin": "12px" },
+      "img": { "max-width": "100%", "height": "auto", "display": "block", "margin": "6px auto" }
+    });
+    rendition.themes.select("idcrypt");
+
+    // initial display and wait
+    await rendition.display();
+    await waitForRender(rendition, 1500);
+    // ensure iframe height (if any) adjusts
     try {
-      if (book) book.destroy();
-      book = ePub(data);
+      const iframe = viewer.querySelector("iframe");
+      if (iframe && iframe.contentDocument) {
+        const doc = iframe.contentDocument;
+        const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+        iframe.style.height = (h + 20) + "px";
+      }
+    } catch (e) { /* ignore */ }
 
-      rendition = book.renderTo("viewer", { width: "100%", height: "100%", spread: "none" });
-
-      // Allow iframe to render content
-      setTimeout(() => {
-        const iframe = viewer.querySelector("iframe");
-        if (iframe) iframe.setAttribute("sandbox", "allow-same-origin");
-      }, 100);
-
-      // Basic theme
-      rendition.themes.register("clean", {
-        "body": { width: "95%", fontSize: "14pt", lineHeight: "1.4", margin: "auto" },
-        "img": { maxWidth: "100%", height: "auto", display: "block", margin: "10px auto" },
-        "p, h1, h2, h3, h4": { marginBottom: "12px" }
-      });
-      rendition.themes.select("clean");
-
-      rendition.display();
-      await sleep(800);
-
-      convertBtn.disabled = false;
-      setStatus("✅ EPUB loaded successfully! Ready to convert.", "green");
-      setProgress(10, "EPUB ready.");
-    } catch (err) {
-      setStatus(`❌ Error loading EPUB: ${err.message}`, "red");
-    }
-  };
-
-  reader.readAsArrayBuffer(file);
-}
+    setStatus("EPUB loaded. You can preview then press Convert.", "green");
+    convertBtn.disabled = false;
+    setProgress(5, "Ready");
+  } catch (err) {
+    console.error(err);
+    setStatus("Error loading EPUB: " + err.message, "red");
+  }
+});
