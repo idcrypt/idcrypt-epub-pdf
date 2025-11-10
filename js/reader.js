@@ -1,32 +1,38 @@
-// ===== EPUB Reader =====
-const input = document.getElementById("epubInput");
+const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
+const statusDiv = document.getElementById("status");
 const viewer = document.getElementById("viewer");
-let globalBook;
+let book, spineItems = [];
 
-input.addEventListener("change", async (e) => {
+epubInput.addEventListener("change", handleEpubSelect);
+
+async function handleEpubSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  setStatus(`Loading <strong>${file.name}</strong>...`, "#007bff");
-  viewer.innerHTML = "";
-
+  setStatus(`📖 Loading <strong>${file.name}</strong>...`);
   const reader = new FileReader();
-  reader.onload = async (evt) => {
+
+  reader.onload = async function(evt) {
+    const data = evt.target.result;
     try {
-      const data = evt.target.result;
-      globalBook = ePub(data);
-      const rendition = globalBook.renderTo("viewer", {
-        width: "100%",
-        height: "90vh",
-      });
-      await rendition.display();
-      setStatus("✅ EPUB loaded successfully! You can preview now.", "green");
+      book = ePub(data);
+      await book.ready;
+
+      // Simpan daftar spine
+      spineItems = book.spine.spineItems;
+
+      // Ambil konten pertama untuk preview
+      const first = await spineItems[0].load(book.load.bind(book));
+      const html = new TextDecoder().decode(first.contents);
+      viewer.innerHTML = html.slice(0, 2000) + "<p style='color:gray;'>...</p>";
+
+      setStatus("✅ EPUB loaded successfully. Ready to convert.");
       convertBtn.disabled = false;
     } catch (err) {
-      setStatus("❌ Error loading EPUB: " + err.message, "red");
-      console.error(err);
+      setStatus(`❌ Error loading EPUB: ${err.message}`, "red");
     }
   };
+
   reader.readAsArrayBuffer(file);
-});
+}
