@@ -5,16 +5,18 @@
   <title>IDCRYPT EPUB → PDF Converter</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Library JS dengan defer supaya DOM siap -->
+  <!-- Libs -->
   <script src="js/jszip.min.js" defer></script>
   <script src="js/epub.min.js" defer></script>
   <script src="js/html2canvas.min.js" defer></script>
   <script src="js/jspdf.umd.min.js" defer></script>
-  <script src="js/converter.js" defer></script>
+
+  <!-- Modules -->
+  <script type="module" src="js/converter.js" defer></script>
 </head>
 <body>
   <div class="container">
-    <h1>IDCRYPT EPUB → PDF Converter</h1>
+    <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
 
     <div class="controls">
       <input type="file" id="epubInput" accept=".epub">
@@ -27,7 +29,6 @@
     </div>
 
     <div id="status"></div>
-
     <div id="viewer" class="viewer"></div>
   </div>
 </body>
