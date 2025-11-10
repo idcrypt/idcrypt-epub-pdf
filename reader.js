@@ -1,38 +1,28 @@
-let book, rendition;
+let globalBook, globalRendition, globalContent;
 
-async function loadEPUB(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async e => {
-      const arrayBuffer = e.target.result;
-      try {
-        if (book) book.destroy();
-        book = ePub(arrayBuffer);
-        rendition = book.renderTo("epubFrame", {
-          width: "100%",
-          height: "100%",
-          spread: "none"
-        });
-
-        await book.ready;
-        await rendition.display();
-
-        // Tunggu render pertama selesai
-        await waitForRender(rendition);
-
-        const iframe = document.querySelector("#epubFrame");
-        if (iframe) {
-          iframe.style.minHeight = "1000px";
-          iframe.style.background = "#fff";
-        }
-
-        setStatus(`✅ EPUB "${file.name}" loaded successfully!`);
-        document.getElementById("convertBtn").disabled = false;
-        resolve(true);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.readAsArrayBuffer(file);
+document.getElementById("epubInput").addEventListener("change", async function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById("status").innerHTML = "📖 Loading EPUB...";
+  
+  const book = ePub(file);
+  globalBook = book;
+  
+  const viewer = document.getElementById("viewer");
+  viewer.innerHTML = ""; // clear
+  
+  const rendition = book.renderTo("viewer", {
+    width: "100%",
+    height: "auto",
+    flow: "paginated",
+    allowScriptedContent: true
   });
-}
+  
+  rendition.display();
+  globalRendition = rendition;
+  
+  await book.ready;
+  await delay(2000);
+  
+  document.getElementById("status").innerHTML = "✅ EPUB loaded. Ready to convert.";
+});
