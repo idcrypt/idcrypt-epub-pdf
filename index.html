@@ -1,31 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>IDCRYPT EPUB → PDF Converter</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>📘 IDCRYPT EPUB → PDF Converter</h2>
-
-  <div class="controls">
-    <input type="file" id="epubInput" accept=".epub" />
-    <button id="convertBtn" disabled>Convert to PDF</button>
+  <div class="container">
+    <h2>📘 IDCRYPT EPUB → PDF Converter</h2>
+    <input type="file" id="epubInput" accept=".epub">
+    <button id="convertBtn">Convert to PDF</button>
+    <div id="status"></div>
+    <progress id="progressBar" value="0" max="100"></progress>
+    <div id="viewer"></div>
   </div>
 
-  <div id="status">📖 Waiting for EPUB file...</div>
-  <progress id="progress" value="0" max="100"></progress>
-
-  <iframe id="epubFrame" sandbox="allow-same-origin allow-scripts"></iframe>
-
-  <!-- JS Libraries -->
+  <!-- Libs -->
   <script src="js/jszip.min.js"></script>
   <script src="js/epub.min.js"></script>
   <script src="js/html2canvas.min.js"></script>
   <script src="js/jspdf.umd.min.js"></script>
 
-  <!-- Main Scripts -->
+  <!-- Custom scripts -->
   <script src="utils.js"></script>
   <script src="reader.js"></script>
   <script src="converter.js"></script>
