@@ -3,20 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDCRYPT EPUB → PDF Converter (Full Render Edition)</title>
+  <title>IDCRYPT EPUB → PDF Converter (Text Flow Mode)</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- ===== Libraries ===== -->
   <script src="js/jszip.min.js"></script>
   <script src="js/epub.min.js"></script>
-  <script src="js/html2canvas.min.js"></script>
   <script src="js/jspdf.umd.min.js"></script>
 </head>
-
 <body>
   <div class="container">
     <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
-    <p class="subtitle">Convert and preserve layout with full-page rendering.</p>
+    <p class="subtitle">Convert EPUB to clean, readable multi-page PDF with text flow.</p>
 
     <div class="controls">
       <input type="file" id="epubInput" accept=".epub">
@@ -29,15 +26,11 @@
     </div>
 
     <div id="status"></div>
-
-    <div id="viewer" class="viewer">
-      <p style="text-align:center;color:#888;">EPUB preview will appear here...</p>
-    </div>
+    <div id="viewer" class="viewer"></div>
   </div>
 
-  <!-- ===== App Logic ===== -->
   <script src="js/utils.js"></script>
   <script src="js/reader.js"></script>
-  <script src="js/converter.js"></script>
+  <script src="js/converter_textflow.js"></script>
 </body>
 </html>
