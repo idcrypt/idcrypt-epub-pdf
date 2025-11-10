@@ -1,69 +1,53 @@
-// ===== IDCRYPT EPUB → PDF Converter =====
-const { jsPDF } = window.jspdf;
+// ===== IDCRYPT EPUB → PDF Converter (Auto Split Version) =====
+import { jsPDF } from "jspdf";
 
-convertBtn.addEventListener("click", async () => {
-  if (!book || !rendition) return;
+document.getElementById("convertBtn").addEventListener("click", async () => {
+  const bookSection = document.getElementById("viewer");
+  const progressBar = document.getElementById("progress");
+  const progressText = document.getElementById("progressText");
 
-  convertBtn.disabled = true;
-  setStatus("🚀 Starting conversion...");
-  setProgress(20, "Rendering pages...");
+  setStatus("Converting to PDF...");
+  progressBar.value = 10;
 
-  const pdf = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const margin = 20;
+  await sleep(300);
 
-  try {
-    const spineItems = book.spine.spineItems;
-    let pageCount = 0;
+  const pdf = new jsPDF("p", "mm", "a4");
+  const A4_WIDTH = 210;
+  const A4_HEIGHT = 297;
+  const PAGE_PIXEL_HEIGHT = 1122; // A4 in px at 96dpi
 
-    for (let i = 0; i < spineItems.length; i++) {
-      const item = spineItems[i];
-      await rendition.display(item.href);
-      await waitForRender(rendition);
-      await sleep(800);
+  const canvas = await html2canvas(bookSection, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+  });
 
-      const iframe = viewer.querySelector("iframe");
-      if (!iframe) continue;
+  const imgData = canvas.toDataURL("image/png");
+  const totalHeight = canvas.height;
+  let position = 0;
+  let pageCount = 0;
 
-      const body = iframe.contentDocument?.body;
-      if (!body || !body.innerText.trim()) continue;
+  while (position < totalHeight) {
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = Math.min(PAGE_PIXEL_HEIGHT, totalHeight - position);
+    const ctx = pageCanvas.getContext("2d");
+    ctx.drawImage(canvas, 0, -position);
 
-      // Ambil seluruh halaman (bukan per paragraf)
-      const canvas = await html2canvas(body, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        logging: false
-      });
+    const pageImgData = pageCanvas.toDataURL("image/png");
+    const pageHeightMM = (pageCanvas.height * A4_WIDTH) / pageCanvas.width;
 
-      if (!canvas.width || !canvas.height) continue;
+    if (pageCount > 0) pdf.addPage();
+    pdf.addImage(pageImgData, "PNG", 0, 0, A4_WIDTH, pageHeightMM);
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const scale = Math.min(
-        (pageWidth - 2 * margin) / canvas.width,
-        (pageHeight - 2 * margin) / canvas.height
-      );
-      const imgW = canvas.width * scale;
-      const imgH = canvas.height * scale;
-      const posX = (pageWidth - imgW) / 2;
-      const posY = (pageHeight - imgH) / 2;
-
-      if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
-
-      pageCount++;
-      const percent = Math.round((pageCount / spineItems.length) * 80) + 20;
-      setProgress(percent, `Rendered ${pageCount}/${spineItems.length} sections...`);
-    }
-
-    pdf.save("idcrypt-epub-final.pdf");
-    setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
-    setProgress(100, "Done!");
-  } catch (err) {
-    console.error(err);
-    setStatus(`❌ Conversion failed: ${err.message}`, "red");
+    position += PAGE_PIXEL_HEIGHT;
+    pageCount++;
+    progressBar.value = Math.min(100, (position / totalHeight) * 100);
+    progressText.textContent = `Rendering page ${pageCount}...`;
+    await sleep(100);
   }
 
-  convertBtn.disabled = false;
+  pdf.save("idcrypt_epub.pdf");
+  setStatus("✅ PDF conversion complete!", "green");
+  progressBar.value = 100;
 });
