@@ -1,49 +1,58 @@
-convertBtn.addEventListener("click", async () => {
-  if (!book || spineItems.length === 0) {
-    setStatus("No EPUB loaded.", "red");
+// ===== IDCRYPT EPUB → PDF Converter (TextFlow Auto Multi-Page) =====
+// Clean full-text rendering, wraps across pages
+
+document.getElementById("convertBtn").addEventListener("click", async () => {
+  const { jsPDF } = window.jspdf;
+  if (!window.book) {
+    setStatus("❌ No EPUB loaded. Please open one first.", "red");
     return;
   }
 
-  const { jsPDF } = window.jspdf;
+  setStatus("Extracting text and preparing PDF...", "#0044aa");
+
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 40;
+  const margin = 50;
   const maxWidth = pageWidth - margin * 2;
   const lineHeight = 18;
   let y = margin;
 
-  setStatus("🧩 Extracting text content...");
-  let totalChapters = spineItems.length;
-  let chapterCount = 0;
+  const spine = window.book.spine;
+  const total = spine.length;
+  let current = 0;
 
-  for (const item of spineItems) {
-    const content = await item.load(book.load.bind(book));
-    const html = new TextDecoder().decode(content.contents);
-    const tmpDiv = document.createElement("div");
-    tmpDiv.innerHTML = html;
+  for (const item of spine) {
+    try {
+      const section = await item.render();
+      const text = section.document.body.innerText
+        .replace(/\s+/g, " ")
+        .trim();
 
-    // Ambil teks saja, abaikan skrip/footnote link
-    const text = tmpDiv.innerText.replace(/\s+/g, " ").trim();
-    const paragraphs = text.split(/\n+/);
+      const paragraphs = text.split(/\n+/).filter(t => t.trim() !== "");
+      pdf.setFont("Times", "normal");
+      pdf.setFontSize(12);
 
-    for (let para of paragraphs) {
-      const lines = pdf.splitTextToSize(para, maxWidth);
-      for (let line of lines) {
-        if (y + lineHeight > pageHeight - margin) {
-          pdf.addPage();
-          y = margin;
+      for (const para of paragraphs) {
+        const lines = pdf.splitTextToSize(para, maxWidth);
+        for (const line of lines) {
+          if (y + lineHeight > pageHeight - margin) {
+            pdf.addPage();
+            y = margin;
+          }
+          pdf.text(line, margin, y);
+          y += lineHeight;
         }
-        pdf.text(line, margin, y);
-        y += lineHeight;
+        y += lineHeight * 0.8;
       }
-      y += lineHeight * 0.8;
-    }
 
-    chapterCount++;
-    const percent = Math.round((chapterCount / totalChapters) * 100);
-    setProgress(percent, `Converting chapter ${chapterCount}/${totalChapters}...`);
-    await sleep(300);
+      current++;
+      const percent = Math.round((current / total) * 100);
+      setProgress(percent, `Converting section ${current}/${total}`);
+      await sleep(200);
+    } catch (e) {
+      console.error("Section error:", e);
+    }
   }
 
   pdf.save("idcrypt-epub-textflow.pdf");
