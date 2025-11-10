@@ -1,11 +1,12 @@
-let rendition, book;
+let book, rendition;
 
 async function loadEPUB(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = async e => {
       const arrayBuffer = e.target.result;
       try {
+        if (book) book.destroy();
         book = ePub(arrayBuffer);
         rendition = book.renderTo("epubFrame", {
           width: "100%",
@@ -13,24 +14,20 @@ async function loadEPUB(file) {
           spread: "none"
         });
 
-        rendition.display();
-
-        rendition.on("rendered", () => {
-          const iframe = document.querySelector("#epubFrame");
-          const doc = iframe.contentDocument;
-          const html = doc.documentElement;
-          const body = doc.body;
-
-          const height = Math.max(
-            body.scrollHeight,
-            html.scrollHeight,
-            body.offsetHeight,
-            html.offsetHeight
-          );
-          iframe.style.height = `${height}px`;
-        });
-
         await book.ready;
+        await rendition.display();
+
+        // Tunggu render pertama selesai
+        await waitForRender(rendition);
+
+        const iframe = document.querySelector("#epubFrame");
+        if (iframe) {
+          iframe.style.minHeight = "1000px";
+          iframe.style.background = "#fff";
+        }
+
+        setStatus(`✅ EPUB "${file.name}" loaded successfully!`);
+        document.getElementById("convertBtn").disabled = false;
         resolve(true);
       } catch (err) {
         reject(err);
