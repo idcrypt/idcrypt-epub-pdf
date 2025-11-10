@@ -1,56 +1,40 @@
-const input = document.getElementById("epubInput");
-const convertBtn = document.getElementById("convertBtn");
-
-input.addEventListener("change", async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  setStatus(`Loading EPUB file: ${file.name}`);
-  await loadEPUB(file);
-});
-
-convertBtn.addEventListener("click", async () => {
-  const iframe = document.getElementById("epubFrame");
-  const doc = iframe.contentDocument;
-  const body = doc?.body;
-  if (!body) {
-    setStatus("❌ No EPUB content detected!", "red");
+document.getElementById("convertBtn").addEventListener("click", async function () {
+  const viewer = document.getElementById("viewer");
+  const status = document.getElementById("status");
+  const progressBar = document.getElementById("progressBar");
+  
+  if (!viewer.innerHTML.trim()) {
+    alert("Please load an EPUB first.");
     return;
   }
 
-  setStatus("📸 Rendering EPUB into PDF...");
+  status.innerHTML = "Rendering to PDF...";
+  progressBar.value = 0;
+
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "pt", format: "a4" });
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+  const pdf = new jsPDF("p", "mm", "a4");
 
-  const fullHeight = body.scrollHeight;
-  const viewportHeight = iframe.clientHeight;
-  const scale = pageWidth / iframe.clientWidth;
+  const pages = viewer.querySelectorAll("iframe");
 
-  let yOffset = 0;
-  let page = 1;
-
-  while (yOffset < fullHeight) {
-    await html2canvas(body, {
-      scale: 2,
-      scrollY: -yOffset,
-      windowWidth: body.scrollWidth,
-      windowHeight: body.scrollHeight,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff"
-    }).then(canvas => {
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      if (page > 1) pdf.addPage();
-      pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
-    });
-
-    yOffset += viewportHeight;
-    setProgress((yOffset / fullHeight) * 100, `Page ${page++}`);
-    await sleep(400);
+  for (let i = 0; i < pages.length; i++) {
+    const iframe = pages[i];
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    const iframeBody = iframeDoc.body;
+    
+    // Konversi isi iframe ke canvas
+    const canvas = await html2canvas(iframeBody, { scale: 2 });
+    const imgData = canvas.toDataURL("image/jpeg", 0.9);
+    
+    const imgWidth = 210;
+    const pageHeight = (canvas.height * 210) / canvas.width;
+    
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, pageHeight);
+    
+    progressBar.value = ((i + 1) / pages.length) * 100;
+    await delay(500);
   }
 
-  pdf.save(`${input.files[0].name.replace(".epub", "")}.pdf`);
-  setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
-  setProgress(100, "All done!");
+  pdf.save("idcrypt-epub.pdf");
+  status.innerHTML = "✅ Done!";
 });
