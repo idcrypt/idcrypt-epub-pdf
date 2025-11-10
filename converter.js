@@ -1,60 +1,56 @@
-document.getElementById("convertBtn").addEventListener("click", async () => {
-  const input = document.getElementById("epubInput");
-  const status = document.getElementById("status");
-  const progress = document.getElementById("progress");
+const input = document.getElementById("epubInput");
+const convertBtn = document.getElementById("convertBtn");
 
-  if (!input.files.length) {
-    alert("Please upload an EPUB file first!");
+input.addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus(`Loading EPUB file: ${file.name}`);
+  await loadEPUB(file);
+});
+
+convertBtn.addEventListener("click", async () => {
+  const iframe = document.getElementById("epubFrame");
+  const doc = iframe.contentDocument;
+  const body = doc?.body;
+  if (!body) {
+    setStatus("❌ No EPUB content detected!", "red");
     return;
   }
 
-  status.innerText = "📚 Loading EPUB...";
-  progress.value = 10;
+  setStatus("📸 Rendering EPUB into PDF...");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
 
-  await loadEPUB(input.files[0]);
+  const fullHeight = body.scrollHeight;
+  const viewportHeight = iframe.clientHeight;
+  const scale = pageWidth / iframe.clientWidth;
 
-  status.innerText = "📸 Rendering pages...";
-  await sleep(1500);
-
-  const iframe = document.getElementById("epubFrame");
-  const doc = iframe.contentDocument;
-  const body = doc.body;
-
-  const pdf = new jspdf.jsPDF({
-    orientation: "p",
-    unit: "px",
-    format: "a4"
-  });
-
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const scale = pdfWidth / body.scrollWidth;
-
-  const totalHeight = body.scrollHeight;
-  const pageHeight = pdf.internal.pageSize.getHeight() / scale;
-  let renderedHeight = 0;
+  let yOffset = 0;
   let page = 1;
 
-  while (renderedHeight < totalHeight) {
+  while (yOffset < fullHeight) {
     await html2canvas(body, {
       scale: 2,
-      scrollY: -renderedHeight,
+      scrollY: -yOffset,
       windowWidth: body.scrollWidth,
       windowHeight: body.scrollHeight,
       useCORS: true,
-      allowTaint: true
+      allowTaint: true,
+      backgroundColor: "#ffffff"
     }).then(canvas => {
-      const imgData = canvas.toDataURL("image/png");
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
       if (page > 1) pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdf.internal.pageSize.getHeight());
+      pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
     });
 
-    renderedHeight += pageHeight;
-    progress.value = Math.min(100, (renderedHeight / totalHeight) * 100);
-    page++;
-    await sleep(300);
+    yOffset += viewportHeight;
+    setProgress((yOffset / fullHeight) * 100, `Page ${page++}`);
+    await sleep(400);
   }
 
   pdf.save(`${input.files[0].name.replace(".epub", "")}.pdf`);
-  status.innerText = "✅ Conversion complete!";
-  progress.value = 100;
+  setStatus("✅ Conversion complete! PDF downloaded automatically.", "green");
+  setProgress(100, "All done!");
 });
