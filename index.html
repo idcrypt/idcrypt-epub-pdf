@@ -1,43 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IDCRYPT EPUB → PDF Converter</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
-  <!-- lokal libs (pastikan file ada di js/) -->
-  <script src="js/jszip.min.js" defer></script>
-  <script src="js/epub.min.js" defer></script>
-  <script src="js/html2canvas.min.js" defer></script>
-  <script src="js/jspdf.umd.min.js" defer></script>
-
-  <!-- app scripts -->
-  <script src="js/utils.js" defer></script>
-  <script src="js/reader.js" defer></script>
-  <script src="js/converter.js" defer></script>
 </head>
 <body>
-  <div class="container">
-    <h1>📘 IDCRYPT EPUB → PDF Converter</h1>
+  <h2>📘 IDCRYPT EPUB → PDF Converter</h2>
 
-    <div class="controls">
-      <input id="epubFile" type="file" accept=".epub" />
-      <button id="convertBtn" disabled>Convert to PDF</button>
-    </div>
-
-    <div class="progress-container">
-      <progress id="progress" value="0" max="100"></progress>
-      <div id="progressText">Waiting for file...</div>
-    </div>
-
-    <div id="status"></div>
-
-    <div id="viewer" class="viewer"></div>
-
-    <div class="nav">
-      <button id="prevPage">◀ Prev</button>
-      <button id="nextPage">Next ▶</button>
-    </div>
+  <div class="controls">
+    <input type="file" id="epubInput" accept=".epub" />
+    <button id="convertBtn">Convert to PDF</button>
   </div>
+
+  <div id="status">📖 Waiting for EPUB file...</div>
+  <progress id="progress" value="0" max="100"></progress>
+
+  <iframe id="epubFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+
+  <!-- JS Libraries -->
+  <script src="js/jszip.min.js"></script>
+  <script src="js/epub.min.js"></script>
+  <script src="js/html2canvas.min.js"></script>
+  <script src="js/jspdf.umd.min.js"></script>
+
+  <!-- Main Scripts -->
+  <script src="utils.js"></script>
+  <script src="reader.js"></script>
+  <script src="converter.js"></script>
 </body>
 </html>
