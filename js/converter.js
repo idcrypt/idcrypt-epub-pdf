@@ -1,5 +1,4 @@
 // ===== IDCRYPT EPUB → PDF Converter (Stable Revision) =====
-// Requires: epub.js, html2canvas, jsPDF, utils.js
 
 document.addEventListener("DOMContentLoaded", () => {
   const convertBtn = document.getElementById("convertBtn");
@@ -32,12 +31,10 @@ document.addEventListener("DOMContentLoaded", () => {
           `Rendering section ${i + 1}/${spineItems.length}...`
         );
 
-        // Tampilkan bab
         await rendition.display(item.href);
         await waitForRender(rendition);
         await sleep(800);
 
-        // Ambil iframe berisi halaman EPUB
         let iframe = viewer.querySelector("iframe");
         if (!iframe) {
           console.warn("⚠️ iframe not found, retrying...");
@@ -45,38 +42,31 @@ document.addEventListener("DOMContentLoaded", () => {
           iframe = viewer.querySelector("iframe");
         }
 
-        if (!iframe || !iframe.contentDocument) {
-          console.warn("❌ No iframe document for", item.href);
-          continue;
-        }
+        if (!iframe || !iframe.contentDocument) continue;
 
         const doc = iframe.contentDocument;
         const body = doc.querySelector("body");
-        if (!body || !body.innerText.trim()) {
-          console.warn("⚠️ Empty body for", item.href);
-          continue;
-        }
+        if (!body || !body.innerText.trim()) continue;
 
-        // Tambahkan styling dasar supaya layout stabil
+        // Basic style for stability
         body.style.padding = "20px";
         body.style.background = "#fff";
         body.style.color = "#000";
         body.style.fontSize = "14pt";
-        body.style.lineHeight = "1.4";
-        body.style.wordWrap = "break-word";
+        body.style.lineHeight = "1.5";
         body.style.maxWidth = "800px";
         body.style.margin = "auto";
 
-        // Render halaman jadi canvas
+        // Render via html2canvas
         const canvas = await html2canvas(body, {
           scale: 2,
           useCORS: true,
-          backgroundColor: "#ffffff"
+          backgroundColor: "#ffffff",
         });
 
         if (!canvas.width || !canvas.height) continue;
 
-        // Resize biar pas ke A4
+        // Scale & position
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
         const availableWidth = pageWidth - 2 * margin;
         const availableHeight = pageHeight - 2 * margin;
@@ -89,15 +79,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const posX = (pageWidth - imgW) / 2;
         const posY = (pageHeight - imgH) / 2;
 
-        // Tambahkan ke PDF
         if (renderedCount > 0) pdf.addPage();
         pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
         renderedCount++;
       }
 
-      if (renderedCount === 0) {
+      if (renderedCount === 0)
         throw new Error("No valid pages rendered. Possibly empty EPUB.");
-      }
 
       pdf.save("idcrypt-epub-final.pdf");
       setStatus("✅ Conversion complete!", "green");
