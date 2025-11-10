@@ -1,107 +1,96 @@
-/* ===== IDCRYPT EPUB → PDF Converter Styles ===== */
 body {
-  font-family: "Segoe UI", Roboto, sans-serif;
-  background: #e9f5ff;
+  background: #eef6ff;
   color: #222;
+  font-family: "Segoe UI", sans-serif;
   margin: 0;
   padding: 0;
 }
 
 .container {
   max-width: 900px;
-  margin: 40px auto;
+  margin: 30px auto;
   background: #fff;
-  padding: 30px;
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-
-header {
-  text-align: center;
-  margin-bottom: 30px;
+  padding: 25px 30px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
 h1 {
-  color: #0077cc;
-  font-size: 1.8em;
-  margin-bottom: 8px;
+  text-align: center;
+  color: #0066cc;
+  margin-bottom: 10px;
 }
 
 .subtitle {
+  text-align: center;
   color: #555;
-  font-size: 0.95em;
+  margin-bottom: 25px;
 }
 
 .controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  text-align: center;
   margin-bottom: 20px;
 }
 
-.file-label {
-  font-weight: 600;
-}
-
-input[type="file"] {
-  padding: 6px;
+input[type=file], button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  margin: 5px;
 }
 
 button {
-  background-color: #0077cc;
-  color: #fff;
+  background-color: #007bff;
+  color: white;
   border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 1em;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background 0.3s;
 }
 
 button:disabled {
-  background-color: #9ac4e3;
+  background-color: #aaa;
   cursor: not-allowed;
 }
 
-button:hover:not(:disabled) {
-  background-color: #005fa3;
+button:hover:enabled {
+  background-color: #0056b3;
 }
 
-.progress-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 15px;
+.progress-container {
+  text-align: center;
+  margin: 20px 0;
 }
 
 progress {
-  width: 80%;
-  height: 16px;
-  margin-bottom: 8px;
+  width: 70%;
+  height: 15px;
+  border-radius: 10px;
+  overflow: hidden;
+  appearance: none;
 }
 
-.status-box {
-  background-color: #f8f9fa;
-  border-left: 4px solid #0077cc;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 25px;
+progress::-webkit-progress-bar {
+  background-color: #ddd;
+  border-radius: 10px;
+}
+
+progress::-webkit-progress-value {
+  background-color: #007bff;
+  border-radius: 10px;
+}
+
+#status {
   text-align: center;
+  margin: 15px 0;
+  font-size: 14px;
 }
 
 .viewer {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fafafa;
   min-height: 400px;
-  background-color: #f4faff;
-  border: 1px solid #cbe2f7;
-  border-radius: 10px;
-  padding: 15px;
   overflow-y: auto;
-}
-
-footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 0.9em;
-  color: #666;
 }
