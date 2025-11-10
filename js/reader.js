@@ -1,38 +1,39 @@
+// ===== IDCRYPT EPUB Reader Loader =====
+
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
-const statusDiv = document.getElementById("status");
 const viewer = document.getElementById("viewer");
-let book, spineItems = [];
 
-epubInput.addEventListener("change", handleEpubSelect);
+let book = null; // local reference
+window.book = null; // global for converter
 
-async function handleEpubSelect(e) {
+epubInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
   setStatus(`📖 Loading <strong>${file.name}</strong>...`);
-  const reader = new FileReader();
+  viewer.innerHTML = "<p style='color:#777;'>Loading EPUB preview...</p>";
+  convertBtn.disabled = true;
 
-  reader.onload = async function(evt) {
-    const data = evt.target.result;
-    try {
-      book = ePub(data);
-      await book.ready;
+  try {
+    // Load EPUB file via Blob
+    const arrayBuffer = await file.arrayBuffer();
+    book = ePub(arrayBuffer);
+    window.book = book; // ✅ Make globally available
 
-      // Simpan daftar spine
-      spineItems = book.spine.spineItems;
+    // Render into #viewer (iframe)
+    const rendition = book.renderTo("viewer", {
+      width: "100%",
+      height: "600px",
+      spread: "none",
+    });
+    rendition.display();
 
-      // Ambil konten pertama untuk preview
-      const first = await spineItems[0].load(book.load.bind(book));
-      const html = new TextDecoder().decode(first.contents);
-      viewer.innerHTML = html.slice(0, 2000) + "<p style='color:gray;'>...</p>";
-
-      setStatus("✅ EPUB loaded successfully. Ready to convert.");
-      convertBtn.disabled = false;
-    } catch (err) {
-      setStatus(`❌ Error loading EPUB: ${err.message}`, "red");
-    }
-  };
-
-  reader.readAsArrayBuffer(file);
-}
+    await sleep(800);
+    setStatus("✅ EPUB loaded successfully. Ready to convert.", "green");
+    convertBtn.disabled = false;
+  } catch (err) {
+    console.error("EPUB Load Error:", err);
+    setStatus(`❌ Failed to load EPUB: ${err.message}`, "red");
+  }
+});
