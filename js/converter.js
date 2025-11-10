@@ -1,146 +1,114 @@
-// converter.js
-// Requires window._idcrypt.book to be set by reader.js
-document.getElementById("convertBtn").addEventListener("click", async () => {
-  const book = window._idcrypt?.book;
-  const rendition = window._idcrypt?.rendition;
-  if (!book) {
-    alert("Load an EPUB first.");
-    return;
-  }
+// ===== IDCRYPT EPUB → PDF Converter (Stable Revision) =====
+// Requires: epub.js, html2canvas, jsPDF, utils.js
 
-  setStatus("Preparing conversion..."); setProgress(2, "Preparing");
-  await sleep(300);
+document.addEventListener("DOMContentLoaded", () => {
+  const convertBtn = document.getElementById("convertBtn");
+  const viewer = document.getElementById("viewer");
 
-  const spine = book.spine.spineItems;
-  const total = spine.length;
-  if (total === 0) { setStatus("No content found.", "red"); return; }
-
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "mm", format: "a4" }); // use mm for ease
-  const A4_W = 210, A4_H = 297;
-  const MARGIN_MM = 20; // 20mm margin
-  const contentWidthMM = A4_W - MARGIN_MM * 2;
-
-  let outPages = 0;
-
-  for (let i = 0; i < total; i++) {
-    const item = spine[i];
-
-    // render spine item to a Document using epub.js low-level API
-    try {
-      await item.load(book.load.bind(book));
-    } catch (e) {
-      console.warn("load failed", e);
+  convertBtn.addEventListener("click", async () => {
+    if (!window.book || !window.rendition) {
+      setStatus("❌ No EPUB loaded yet.", "red");
+      return;
     }
 
-    let doc;
+    convertBtn.disabled = true;
+    setStatus("Preparing conversion...");
+    setProgress(0, "Starting...");
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const margin = 20;
+
     try {
-      doc = await item.render(); // returns a Document for the spine item
-    } catch (e) {
-      console.warn("render() failed, try display fallback", e);
-      try {
+      const spineItems = book.spine.spineItems;
+      let renderedCount = 0;
+
+      for (let i = 0; i < spineItems.length; i++) {
+        const item = spineItems[i];
+        setProgress(
+          Math.round((i / spineItems.length) * 100),
+          `Rendering section ${i + 1}/${spineItems.length}...`
+        );
+
+        // Tampilkan bab
         await rendition.display(item.href);
-        await waitForRender(rendition, 1500);
-        // try to get iframe doc
-        const iframe = document.getElementById("viewer").querySelector("iframe");
-        doc = iframe ? iframe.contentDocument : null;
-      } catch (er) {
-        console.warn("fallback display failed", er);
-        doc = null;
+        await waitForRender(rendition);
+        await sleep(800);
+
+        // Ambil iframe berisi halaman EPUB
+        let iframe = viewer.querySelector("iframe");
+        if (!iframe) {
+          console.warn("⚠️ iframe not found, retrying...");
+          await sleep(1000);
+          iframe = viewer.querySelector("iframe");
+        }
+
+        if (!iframe || !iframe.contentDocument) {
+          console.warn("❌ No iframe document for", item.href);
+          continue;
+        }
+
+        const doc = iframe.contentDocument;
+        const body = doc.querySelector("body");
+        if (!body || !body.innerText.trim()) {
+          console.warn("⚠️ Empty body for", item.href);
+          continue;
+        }
+
+        // Tambahkan styling dasar supaya layout stabil
+        body.style.padding = "20px";
+        body.style.background = "#fff";
+        body.style.color = "#000";
+        body.style.fontSize = "14pt";
+        body.style.lineHeight = "1.4";
+        body.style.wordWrap = "break-word";
+        body.style.maxWidth = "800px";
+        body.style.margin = "auto";
+
+        // Render halaman jadi canvas
+        const canvas = await html2canvas(body, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff"
+        });
+
+        if (!canvas.width || !canvas.height) continue;
+
+        // Resize biar pas ke A4
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const availableWidth = pageWidth - 2 * margin;
+        const availableHeight = pageHeight - 2 * margin;
+        const scale = Math.min(
+          availableWidth / canvas.width,
+          availableHeight / canvas.height
+        );
+        const imgW = canvas.width * scale;
+        const imgH = canvas.height * scale;
+        const posX = (pageWidth - imgW) / 2;
+        const posY = (pageHeight - imgH) / 2;
+
+        // Tambahkan ke PDF
+        if (renderedCount > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", posX, posY, imgW, imgH);
+        renderedCount++;
       }
-    }
 
-    if (!doc) { console.warn("No document for spine item", i); continue; }
+      if (renderedCount === 0) {
+        throw new Error("No valid pages rendered. Possibly empty EPUB.");
+      }
 
-    // build temp container with <head> styles + body content
-    const temp = document.createElement("div");
-    temp.style.width = (contentWidthMM * (96/25.4)) + "px"; // px width approx
-    temp.style.boxSizing = "border-box";
-    temp.style.background = "#ffffff";
-    temp.style.padding = "8px";
-    // copy styles from doc.head (embedded <style>), and also inline basic CSS to normalize
-    const headStyles = Array.from(doc.querySelectorAll("style")).map(s => s.textContent).join("\n");
-    const styleTag = `<style> ${headStyles} img{max-width:100%;height:auto;} body{background:#fff;color:#111;} </style>`;
-    // use doc.body.innerHTML
-    temp.innerHTML = styleTag + doc.body.innerHTML;
+      pdf.save("idcrypt-epub-final.pdf");
+      setStatus("✅ Conversion complete!", "green");
+      setProgress(100, "All done — check your Downloads folder!");
 
-    // attach temporarily (hidden off-screen)
-    temp.style.position = "fixed";
-    temp.style.left = "-10000px";
-    temp.style.top = "0";
-    document.body.appendChild(temp);
-
-    // wait for images in temp to load
-    const imgs = Array.from(temp.querySelectorAll("img"));
-    await Promise.all(imgs.map(img => {
-      return new Promise(res => {
-        if (img.complete) return res();
-        img.onload = img.onerror = () => res();
-      });
-    }));
-
-    // small CSS-font settle
-    await sleep(200);
-
-    // try jsPDF.html (searchable) first
-    let usedFallback = false;
-    try {
-      if (outPages > 0) pdf.addPage();
-      await pdf.html(temp, {
-        x: MARGIN_MM,
-        y: MARGIN_MM,
-        width: contentWidthMM,
-        windowWidth: temp.clientWidth || Math.max(1000, (contentWidthMM*(96/25.4))),
-        html2canvas: { scale: 0.9, useCORS: true }
-      });
-      outPages++;
     } catch (err) {
-      console.warn("jsPDF.html failed, fallback to image capture for spine", err);
-      usedFallback = true;
-      // snapshot full temp with html2canvas at high scale
-      const canvas = await html2canvas(temp, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      // split canvas vertically into A4 pages with margins
-      const pxPerMM = 96 / 25.4;
-      const pdfPagePxHeight = Math.floor((A4_H - 2 * MARGIN_MM) * pxPerMM *  (canvas.width / (contentWidthMM * pxPerMM)) );
-      // simpler: compute page slice height in px directly relative to canvas width:
-      const pageSliceH_px = Math.floor((A4_H - 2*MARGIN_MM) * (canvas.width / (contentWidthMM * pxPerMM)) * (pxPerMM/pxPerMM) ); // keep similar ratio
-      // Instead of complex math, compute ratio to map canvas width -> contentWidthMM:
-      const contentWidthPx = canvas.width;
-      const mmPerPx = (contentWidthMM) / contentWidthPx; // mm per px
-      const pageSliceHeightPx = Math.floor((A4_H - 2*MARGIN_MM) / mmPerPx);
-
-      let y = 0;
-      let sliceIndex = 0;
-      while (y < canvas.height) {
-        const sliceH = Math.min(pageSliceHeightPx, canvas.height - y);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceH;
-        const ctx = sliceCanvas.getContext("2d");
-        ctx.drawImage(canvas, 0, -y);
-        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.95);
-
-        if (outPages > 0) pdf.addPage();
-        // compute display height in mm:
-        const displayW_mm = contentWidthMM;
-        const displayH_mm = (sliceH * displayW_mm) / canvas.width;
-        pdf.addImage(imgData, "JPEG", MARGIN_MM, MARGIN_MM, displayW_mm, displayH_mm);
-
-        y += sliceH;
-        sliceIndex++;
-        outPages++;
-      }
-    } finally {
-      // cleanup
-      document.body.removeChild(temp);
+      console.error("❌ Conversion failed:", err);
+      setStatus(`❌ Error: ${err.message}`, "red");
+      setProgress(0, "Conversion failed.");
     }
 
-    // progress
-    setProgress(Math.round(((i+1)/total)*100), `Spine ${i+1}/${total}` + (usedFallback ? ' (fallback used)' : ''));
-    await sleep(200);
-  } // end spine loop
-
-  pdf.save('idcrypt-epub.pdf');
-  setStatus('✅ PDF conversion done', 'green');
-  setProgress(100, 'Done');
+    convertBtn.disabled = false;
+  });
 });
