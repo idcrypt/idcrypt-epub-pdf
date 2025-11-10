@@ -1,10 +1,9 @@
 // ===== IDCRYPT EPUB Reader Loader =====
-
 const epubInput = document.getElementById("epubInput");
 const convertBtn = document.getElementById("convertBtn");
 const viewer = document.getElementById("viewer");
 
-let book = null; // local reference
+let book = null; // local
 window.book = null; // global for converter
 
 epubInput.addEventListener("change", async (e) => {
@@ -16,12 +15,19 @@ epubInput.addEventListener("change", async (e) => {
   convertBtn.disabled = true;
 
   try {
-    // Load EPUB file via Blob
+    // Load EPUB as Blob
     const arrayBuffer = await file.arrayBuffer();
     book = ePub(arrayBuffer);
-    window.book = book; // ✅ Make globally available
+    window.book = book;
 
-    // Render into #viewer (iframe)
+    // Wait until ready
+    await book.ready;
+
+    // ✅ Force-load full spine + navigation
+    await book.loaded.spine;
+    await book.loaded.navigation;
+
+    // Render preview
     const rendition = book.renderTo("viewer", {
       width: "100%",
       height: "600px",
@@ -29,7 +35,6 @@ epubInput.addEventListener("change", async (e) => {
     });
     rendition.display();
 
-    await sleep(800);
     setStatus("✅ EPUB loaded successfully. Ready to convert.", "green");
     convertBtn.disabled = false;
   } catch (err) {
