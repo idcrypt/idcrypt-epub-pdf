@@ -1,106 +1,43 @@
-// ============================================================
-// 📘 IDCRYPT EPUB → PDF Converter (Full Page Version)
-// Render full chapter as a single high-resolution canvas
-// No cropping, no tiny text — preserves layout fully
-// ============================================================
+// ===== EPUB → PDF Converter =====
+document.getElementById("convertBtn").addEventListener("click", async () => {
+  try {
+    const viewer = document.getElementById("viewer");
+    if (!viewer.innerHTML.trim()) {
+      setStatus("❌ No content to convert!", "red");
+      return;
+    }
 
-const convertBtn = document.getElementById("convertBtn");
-const statusDiv = document.getElementById("status");
-const previewDiv = document.getElementById("preview");
-let book;
+    setStatus("Preparing conversion...", "#007bff");
+    await sleep(600);
 
-async function loadBook(file) {
-  if (!file) return;
-  status("Loading " + file.name + " ...");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "px", format: "a4" });
 
-  const arrayBuffer = await file.arrayBuffer();
-  book = ePub(arrayBuffer);
+    // split content if too tall for A4
+    const contentHeight = viewer.scrollHeight;
+    const pageHeight = 1122;
+    const totalPages = Math.ceil(contentHeight / pageHeight);
 
-  const rendition = book.renderTo("viewer", {
-    width: "100%",
-    height: "600px",
-  });
+    for (let i = 0; i < totalPages; i++) {
+      const yOffset = -i * pageHeight;
+      const canvas = await html2canvas(viewer, {
+        scrollY: yOffset,
+        scale: 2,
+        useCORS: true
+      });
 
-  await rendition.display();
-  status("EPUB loaded. You can preview then press Convert.");
-}
+      const imgData = canvas.toDataURL("image/png");
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, 0, 595, 842);
 
-async function convertToPDF() {
-  if (!book) {
-    alert("Please load an EPUB file first!");
-    return;
+      setProgress(((i + 1) / totalPages) * 100, `Page ${i + 1}/${totalPages}`);
+      await sleep(200);
+    }
+
+    pdf.save("idcrypt-epub.pdf");
+    setStatus("✅ Conversion complete!", "green");
+  } catch (err) {
+    console.error(err);
+    setStatus(`❌ Conversion failed: ${err.message}`, "red");
   }
-
-  status("Preparing conversion...");
-
-  const jsPDF = window.jspdf.jsPDF;
-  const doc = new jsPDF({
-    orientation: "p",
-    unit: "pt",
-    format: "a4",
-  });
-
-  const spine = await book.loaded.spine;
-  let chapterIndex = 0;
-
-  for (const item of spine) {
-    status(`Rendering chapter ${++chapterIndex} of ${spine.length}...`);
-    const section = await book.load(item.href);
-    const iframe = document.createElement("iframe");
-    iframe.style.width = "1200px";
-    iframe.style.height = "auto";
-    iframe.style.visibility = "hidden";
-    document.body.appendChild(iframe);
-
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(section);
-    iframe.contentDocument.close();
-
-    // Tunggu konten render
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const element = iframe.contentDocument.body;
-    const height = element.scrollHeight;
-    iframe.style.height = height + "px";
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      windowWidth: 1200,
-      useCORS: true,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    // Tambahkan halaman baru kecuali halaman pertama
-    if (chapterIndex > 1) doc.addPage([pdfWidth, pdfHeight]);
-
-    // Resize halaman agar sesuai tinggi bab
-    doc.internal.pageSize.height = pdfHeight;
-    doc.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-
-    document.body.removeChild(iframe);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  status("Generating PDF file...");
-  doc.save("converted_epub_full.pdf");
-  status("✅ Conversion complete!");
-}
-
-function status(msg) {
-  console.log(msg);
-  if (statusDiv) statusDiv.textContent = msg;
-}
-
-// Event handlers
-document.getElementById("epubInput").addEventListener("change", (e) => {
-  loadBook(e.target.files[0]);
-});
-
-convertBtn.addEventListener("click", () => {
-  convertToPDF();
 });
