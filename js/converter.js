@@ -1,10 +1,9 @@
-// ===== IDCRYPT EPUB → PDF Converter (Auto Split Version) =====
-import { jsPDF } from "jspdf";
-
+// ===== IDCRYPT EPUB → PDF Converter (Auto Split Version, UMD-safe) =====
 document.getElementById("convertBtn").addEventListener("click", async () => {
   const bookSection = document.getElementById("viewer");
   const progressBar = document.getElementById("progress");
   const progressText = document.getElementById("progressText");
+  const { jsPDF } = window.jspdf;
 
   setStatus("Converting to PDF...");
   progressBar.value = 10;
@@ -14,7 +13,7 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
   const pdf = new jsPDF("p", "mm", "a4");
   const A4_WIDTH = 210;
   const A4_HEIGHT = 297;
-  const PAGE_PIXEL_HEIGHT = 1122; // A4 in px at 96dpi
+  const PAGE_PIXEL_HEIGHT = 1122; // A4 height in pixels at 96dpi
 
   const canvas = await html2canvas(bookSection, {
     scale: 2,
@@ -22,7 +21,6 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
     backgroundColor: "#ffffff",
   });
 
-  const imgData = canvas.toDataURL("image/png");
   const totalHeight = canvas.height;
   let position = 0;
   let pageCount = 0;
@@ -31,6 +29,7 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
     const pageCanvas = document.createElement("canvas");
     pageCanvas.width = canvas.width;
     pageCanvas.height = Math.min(PAGE_PIXEL_HEIGHT, totalHeight - position);
+
     const ctx = pageCanvas.getContext("2d");
     ctx.drawImage(canvas, 0, -position);
 
@@ -42,6 +41,7 @@ document.getElementById("convertBtn").addEventListener("click", async () => {
 
     position += PAGE_PIXEL_HEIGHT;
     pageCount++;
+
     progressBar.value = Math.min(100, (position / totalHeight) * 100);
     progressText.textContent = `Rendering page ${pageCount}...`;
     await sleep(100);
