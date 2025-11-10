@@ -1,11 +1,11 @@
-// ===== IDCRYPT EPUB → PDF Utility Functions =====
+// ===== Utility & Global Helpers =====
 
-// Delay function
+// Delay / sleep
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Wait until epub.js finishes rendering a page
+// Tunggu sampai halaman EPUB selesai render
 function waitForRender(rendition) {
   return new Promise(resolve => {
     const handler = () => {
@@ -16,16 +16,14 @@ function waitForRender(rendition) {
   });
 }
 
-// Update status text in the UI
+// Update status teks
 function setStatus(msg, color = "#333") {
   const statusDiv = document.getElementById("status");
-  if (statusDiv) {
-    statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
-  }
+  if (statusDiv) statusDiv.innerHTML = `<p style="color:${color};">${msg}</p>`;
   console.log(msg);
 }
 
-// Update progress bar and text
+// Update progress bar
 function setProgress(value, text) {
   const bar = document.getElementById("progress");
   if (bar) bar.value = value;
